@@ -1,3 +1,5 @@
+THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
+
 bootstrap_inference = function(X, y, 
 		model_string, 
 		predict_string = "predict(mod, obs_left_out)",
@@ -46,6 +48,7 @@ bootstrap_inference = function(X, y,
     ##Now move on to bootstrap sampling...
 	
 	#place to store results from all bootstrap samples
+	#raw_results = list()
 	run_results = list()
 	q_scores = list()
 	q_scores[["adversarial"]] = array(NA, B)
@@ -77,6 +80,7 @@ bootstrap_inference = function(X, y,
 					full_verbose = full_verbose,
 					...) #all other arguments head on into the model building which is done in this function
 		}
+		#iter_list$raw_results = raw_results
 		iter_list$run_results = create_PTE_results_object(raw_results, y_higher_is_better)
 		iter_list$q_scores$adversarial = ifelse(length(iter_list$run_results$q_adversarial) == 1, iter_list$run_results$q_adversarial, NA)
 		iter_list$q_scores$average = ifelse(length(iter_list$run_results$q_average) == 1, iter_list$run_results$q_average, NA)
@@ -91,12 +95,14 @@ bootstrap_inference = function(X, y,
 	}	
   
 ##now populate existing vecs to proceed
-  
+  num_bad = 0
   for (b in 1 : B){
     run_results[[b]] = boot_list[[b]]$run_results
+	#raw_results[[b]] = boot_list[[b]]$raw_results
     q_scores$adversarial[b] = boot_list[[b]]$q_scores$adversarial
     q_scores$average[b] = boot_list[[b]]$q_scores$average
     q_scores$best[b] = boot_list[[b]]$q_scores$best
+	num_bad = num_bad + ifelse(boot_list[[b]]$run_results$is_bad, 1, 0)
   }
   
   
@@ -165,6 +171,8 @@ bootstrap_inference = function(X, y,
 	    }
 	    iter_list
   	}
+	
+
 
     #fill in vecs
 	for (i in 1 : n){
@@ -259,14 +267,20 @@ bootstrap_inference = function(X, y,
 		abline(v = bca_ci_q_best[1], col = "dodgerblue3", lwd = 1)
 		abline(v = bca_ci_q_best[2], col = "dodgerblue3", lwd = 1)
 	}
-
+	
+	#print a warning message if need be
+	if (num_bad  / B > THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE){
+		warning("This inference may be suspect since ", num_bad, " bootstrap samples were invalid (", round(num_bad  / B * 100, 2), "%).", sep = "")
+	}
 	
 	return_obj = list()
 	return_obj$Xy = Xy
 	return_obj$model_string = model_string
 	return_obj$predict_string = predict_string
 	return_obj$y_higher_is_better = y_higher_is_better
+	#return_obj$raw_results = raw_results
 	return_obj$run_results = run_results
+	return_obj$num_bad = num_bad
     return_obj$observed_q_adversarial = observed_q_scores$adversarial
     return_obj$observed_q_average = observed_q_scores$average
     return_obj$observed_q_best = observed_q_scores$best

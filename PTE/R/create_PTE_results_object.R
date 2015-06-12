@@ -47,6 +47,7 @@ create_PTE_results_object = function(raw_results, y_higher_is_better){
 	
 	return_obj$results = raw_results
 	return_obj$summary_square = summary_square
+	return_obj$is_bad = is.nan(sum(summary_square)) #if any of them are NaN this will pick it up
 	return_obj$ns = ns
 	return_obj$pct_data_used = round(ns[3, 3] / n, 3)
 	return_obj$Ra = Ra
@@ -64,7 +65,7 @@ create_PTE_results_object = function(raw_results, y_higher_is_better){
 	return_obj$avg_all = mean(c(Ra, Rb, Rc, Rd), na.rm = TRUE)
 	avg_ys_tx_1 = mean(c(Ra, Rb), na.rm = TRUE)
 	avg_ys_tx_2 = mean(c(Rc, Rd), na.rm = TRUE)
-	if (avg_ys_tx_1 >= avg_ys_tx_2 && y_higher_is_better){ #sometimes continuous data aint continuous and you can have a "measure 0" event of equality here
+	if (avg_ys_tx_1 >= avg_ys_tx_2 && y_higher_is_better){ #sometimes continuous data aint continuous and you can have a "measure 0" event of equality here - at equality should pick group 1 or 2 with equal prob (not done)
 		return_obj$avg_best = avg_ys_tx_1
 	} else if (avg_ys_tx_1 >= avg_ys_tx_2 && !y_higher_is_better){
 		return_obj$avg_best = avg_ys_tx_2

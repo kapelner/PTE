@@ -44,7 +44,8 @@ the forecast data (the left one out data) is referred to as \code{obs_left_out} 
 }
   \item{cleanup_mod_function}{
 A function that is called at the end of a cross validation iteration to cleanup the model 
-in some way.
+in some way. This is used for instance if you would like to release the memory your model is using but generall does not apply.
+The default is \code{NA} for "no function."
 }
   \item{y_higher_is_better}{
 True if a response value being higher is clinically "better" than one that is lower (e.g. cognitive ability in a drug trial for the 

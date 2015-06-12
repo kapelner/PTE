@@ -1,3 +1,4 @@
+library(PTE)
 set.seed(1984)
 graphics.off()
 
