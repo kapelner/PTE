@@ -20,6 +20,7 @@ bootstrap_inference(X, y,
 		H_0_mu_equals = 0,
 		pct_leave_out = 0.10,
 		B = 3000,
+		m_prop = 1,
 		alpha = 0.05,
 		plot = TRUE,
         num_cores = 1,
@@ -69,6 +70,11 @@ which corresponds to 10-fold cross validation.
   \item{B}{
 The number of bootstrap samples to take. We recommend making this as high as you can tolerate given speed considerations.
 The default is 3000.
+}
+  \item{m_prop}{
+Within each bootstrap sample, the proportion of the total number of rows of \code{X} to sample without replacement. \code{m_prop < 1} ensures
+the number of rows sampled is less than \code{n} which fixes the consistency of the bootstrap estimator of a non-smooth functional. The default 
+is 1 since non-smoothness may not be a common issue. 
 }
   \item{alpha}{
 Defines the confidence interval size (1 - alpha). Defaults to 0.05.

@@ -9,6 +9,7 @@ bootstrap_inference = function(X, y,
 		full_verbose = FALSE,
 		H_0_mu_equals = 0,
 		pct_leave_out = 0.10,
+		m_prop = 1,
 		B = 3000,
 		alpha = 0.05,
 		plot = TRUE,
@@ -59,14 +60,13 @@ bootstrap_inference = function(X, y,
 	cluster = makeCluster(num_cores)
 	registerDoParallel(cluster)
   
-  
 	boot_list = foreach(b = 1 : B) %dopar% {
     	iter_list = list()
     	iter_list$q_scores = list()
 		raw_results = create_raw_results_matrix(n)
 		
 		#pull a bootstrap sample
-		Xyb = Xy[sample(1 : n, n, replace = TRUE), ]
+		Xyb = Xy[sample(1 : n, round(m_prop * n), replace = TRUE), ]
 		
 		for (l_test in 1 : cutoff_obj$num_windows){
 			left_out_window_test = cutoff_obj$begin_cutoffs_for_leave_outs[l_test] : cutoff_obj$end_cutoffs_for_leave_outs[l_test]
