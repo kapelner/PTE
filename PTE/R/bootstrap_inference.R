@@ -27,7 +27,7 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' 									"obs_left_out", a vector of covariates representing an observation from \code{X}. This function must return a 
 #' 									scalar numeric quantity for comparison. The default function is \code{predict(mod, obs_left_out)}.
 #' @param cleanup_mod_function 		A function that is called at the end of a cross validation iteration to cleanup the model 
-#' 									in some way. This is used for instance if you would like to release the memory your model is using but generall does not apply.
+#' 									in some way. This is used for instance if you would like to release the memory your model is using but generally does not apply.
 #' 									The default is \code{NA} for "no function."
 #' @param y_higher_is_better 		True if a response value being higher is clinically "better" than one that is lower (e.g. cognitive ability in a drug trial for the 
 #' 									mentally ill). False if the response value being lower is clinically "better" than one that is higher (e.g. amount of weight lost 

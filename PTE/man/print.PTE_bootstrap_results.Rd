@@ -16,7 +16,7 @@ running the \code{PTE_bootstrap_inference} function.}
 Prints a summary of the model to the console
 }
 \examples{
-	beta0 = 1
+beta0 = 1
 beta1 = -1
 gamma0 = 0
 gamma1 = sqrt(2 * pi)

@@ -4,15 +4,16 @@
 \alias{PTE_bootstrap_inference}
 \title{Bootstrap inference for a prespecified personalization / recommendation model}
 \usage{
-PTE_bootstrap_inference(X, y, regression_type = "response",
+PTE_bootstrap_inference(X, y, regression_type = "continuous",
   personalized_model_build_function = NULL, censored = NULL,
   predict_function = function() {     predict(mod, obs_left_out) },
-  cleanup_mod_function = NA, y_higher_is_better = TRUE, verbose = TRUE,
+  cleanup_mod_function = NULL, y_higher_is_better = TRUE, verbose = TRUE,
   full_verbose = FALSE, H_0_mu_equals = 0, pct_leave_out = 0.1,
-  m_prop = 1, B = 3000, alpha = 0.05, plot = TRUE, num_cores = 1, ...)
+  m_prop = 1, B = 3000, alpha = 0.05, plot = TRUE, num_cores = 1)
 }
 \arguments{
-\item{X}{A \eqn{n \times p}{n x p} dataframe of covariates.}
+\item{X}{A \eqn{n \times p}{n x p} dataframe of covariates where one column is labeled "treatment" and it
+is a binary vector of treatment allocations in the study.}
 
 \item{y}{An \eqn{n}-length numeric vector which is the response}
 
@@ -21,13 +22,24 @@ a real number with no missing data, the default), "incidence" (the reponse \code
 either 0 or 1) and "survival". If the type is "survival", the user must also supply additional data via the 
 parameter \code{censored}.}
 
-\item{censored}{Only required if the \code{regression_type} is "survival". In this case, this vector is of length
-                   \eqn{n} and is binary where 0 indicates censored and 1 indicates uncensored. In a clinical trial, someone who is still alive 
-                   at the end of the study or was lost to follow up will receive a censor value of 0, while someone who died during the study 
-will receive a censor value of 1.}
+\item{personalized_model_build_function}{An R function that will be evaluated to construct the personalized medicine / recommendation 
+model. In the formula for the model, the response is "y", the treatment vector is 
+"treatment" and the data is "Xyleft". This function must return some type of object
+that can be used for prediction later via \code{predict_function}.}
+
+\item{censored}{Only required if the \code{regression_type} is "survival". In this case, this vector is of length \eqn{n} and is binary 
+   where 0 indicates censored and 1 indicates uncensored. In a clinical trial, someone who is still alive 
+   at the end of the study or was lost to follow up will receive a censor value of 0, while someone who died during the study 
+will receive a censor value of 1. 
+   \eqn{n} and is binary where 0 indicates censorship (e.g. the patient died).}
+
+\item{predict_function}{An R cfunction that will be evaluated on left out data after the model is built with the training data. This function
+uses the object "mod" that is the result of the \code{personalized_model_build_function} and it must make use of
+"obs_left_out", a vector of covariates representing an observation from \code{X}. This function must return a 
+scalar numeric quantity for comparison. The default function is \code{predict(mod, obs_left_out)}.}
 
 \item{cleanup_mod_function}{A function that is called at the end of a cross validation iteration to cleanup the model 
-in some way. This is used for instance if you would like to release the memory your model is using but generall does not apply.
+in some way. This is used for instance if you would like to release the memory your model is using but generally does not apply.
 The default is \code{NA} for "no function."}
 
 \item{y_higher_is_better}{True if a response value being higher is clinically "better" than one that is lower (e.g. cognitive ability in a drug trial for the 
@@ -56,15 +68,6 @@ The default is 3000.}
 \item{plot}{Illustrates the estimate, the bootstrap samples and the confidence intervals on a histogram plot. Default to TRUE.}
 
 \item{num_cores}{The number of cores to use in parallel to run the bootstrap samples more rapidly. Defaults to serial by using 1 core.}
-
-\item{...}{Additional parameters to be sent to the model constructor. Note that if you wish to pass these parameters, 
-"..." must be specified in model_string.}
-
-\item{model_string}{A string of R code that will be evaluated to construct the leave one out model. Make sure the covariate data is
-referred to as \code{Xyleft}.}
-
-\item{predict_string}{A string of R code that will be evaluated on left out data after the model is built with the training data. Make sure
-the forecast data (the left one out data) is referred to as \code{obs_left_out} and the model is referred to as \code{mod}.}
 }
 \value{
 
