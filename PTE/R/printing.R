@@ -1,3 +1,12 @@
+#' Prints a summary of the model to the console
+#' 
+#' @param x 								A \code{PTE_bootstrap_results} model object built via
+#' 											running the \code{PTE_bootstrap_inference} function.
+#' @param ...								Other methods passed to print
+#' @method summary PTE_bootstrap_results
+#' 
+#' @author Adam Kapelner
+#' @export
 print.PTE_bootstrap_results = function(x, ...){
 	cat("    I_adversarial observed est = ", 
 			round(x$observed_q_adversarial, 3), 
@@ -53,7 +62,15 @@ print.PTE_bootstrap_results = function(x, ...){
 	cat("\n")  
 }
 
-#alias the print function
+#' Prints a summary of the model to the console
+#' 
+#' @param object 					A \code{PTE_bootstrap_results} model object built via
+#' 									running the \code{PTE_bootstrap_inference} function.
+#' @param ... 						Other methods passed to summary
+#' @method summary PTE_bootstrap_results
+#' 
+#' @author Adam Kapelner
+#' @export
 summary.PTE_bootstrap_results = function(object, ...){
 	print(object)
 }

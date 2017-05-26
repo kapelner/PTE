@@ -1,3 +1,8 @@
+version 1.5
+
+* Support for survival regression and incidence regression
+* Better arguments / defaults and better documentation
+
 version 1.0
 
 * Initial Release
