@@ -18,12 +18,13 @@ PTE_bootstrap_inference(X, y, regression_type = "response",
 
 \item{regression_type}{A string indicating the regression problem. Legal values are "continous" (the response \code{y} is
 a real number with no missing data, the default), "incidence" (the reponse \code{y} is
-either 0 or 1) and "survival" (the response is a time value with NA's for all uncensored
-responses). If the type is "survival", the user must also supply additional data via the 
+either 0 or 1) and "survival". If the type is "survival", the user must also supply additional data via the 
 parameter \code{censored}.}
 
 \item{censored}{Only required if the \code{regression_type} is "survival". In this case, this vector is of length
-\eqn{n} and is binary where 0 indicates censorship (e.g. the patient died).}
+                   \eqn{n} and is binary where 0 indicates censored and 1 indicates uncensored. In a clinical trial, someone who is still alive 
+                   at the end of the study or was lost to follow up will receive a censor value of 0, while someone who died during the study 
+will receive a censor value of 1.}
 
 \item{cleanup_mod_function}{A function that is called at the end of a cross validation iteration to cleanup the model 
 in some way. This is used for instance if you would like to release the memory your model is using but generall does not apply.
