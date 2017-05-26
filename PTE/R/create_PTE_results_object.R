@@ -54,10 +54,14 @@ create_PTE_results_object = function(raw_results, y_higher_is_better){
 	return_obj$Rb = Rb
 	return_obj$Rc = Rc
 	return_obj$Rd = Rd
-	sse = sum((raw_results$real_y - raw_results$est_true)^2, na.rm = TRUE)
-	return_obj$oos_rmse = sqrt(sse / n)
-	sst = sum((raw_results$real_y - mean(raw_results$real_y, na.rm = TRUE))^2, na.rm = TRUE)
-	return_obj$out_of_sample_Rsq = 1 - sse / sst
+	
+	if (regression_type == "continuous"){
+		sse = sum((raw_results$real_y - raw_results$est_true)^2, na.rm = TRUE)
+		return_obj$oos_rmse = sqrt(sse / n)
+		sst = sum((raw_results$real_y - mean(raw_results$real_y, na.rm = TRUE))^2, na.rm = TRUE)
+		return_obj$out_of_sample_Rsq = 1 - sse / sst
+	}
+
 	return_obj$pred_differences_avg = mean(abs(raw_results[, 1] - raw_results[, 2]), na.rm = TRUE)
 	return_obj$pred_differences_sd = sd(abs(raw_results[, 1] - raw_results[, 2]), na.rm = TRUE)
 	return_obj$avg_optimals = mean(c(Ra, Rd), na.rm = TRUE)

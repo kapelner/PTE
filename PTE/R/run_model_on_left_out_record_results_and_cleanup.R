@@ -1,13 +1,13 @@
 run_model_on_left_out_record_results_and_cleanup = function( 
 		leave_outs_to_be_predicted, 
-		train_on_all_except_these,
-		...){
+		train_on_all_except_these){
 	
 	#the left one out matrix has n-1 rows and will be considered the "training data"
 	Xyleft = Xy[-train_on_all_except_these, ]
 	
 	#build the model via the user-specified string
-	mod = personalized_model_build_function() #this function makes use of the "Xyleft" object
+	mod = personalized_model_build_function(Xyleft) #this function makes use of the "Xyleft" object
+	print(summary(mod))
 	
 	#pull out the record of the left-one-out subject
 	obs_left_out = Xy[leave_outs_to_be_predicted, 1 : (ncol(Xy) - 1)]
@@ -18,9 +18,9 @@ run_model_on_left_out_record_results_and_cleanup = function(
 	
 	#now evaluate the left-one-out subject on the model for both his true treatment and his counterfactual
 	obs_left_out$treatment = 0
-	yhatTx0s = eval(parse(text = predict_string))
+	yhatTx0s = predict_function(mod, obs_left_out)
 	obs_left_out$treatment = 1
-	yhatTx1s = eval(parse(text = predict_string))
+	yhatTx1s = predict_function(mod, obs_left_out)
 	
 	#give the user some indication of progress if they want to see it
 	if (full_verbose){
@@ -31,7 +31,7 @@ run_model_on_left_out_record_results_and_cleanup = function(
 	
 	#if the models need to be cleaned up in some way, do it now before the next iteration of the leave-one-out
 	if (!is.null(cleanup_mod_function)){
-		cleanup_mod_function.call()
+		cleanup_mod_function()
 	}
 	
 	#tabulate the result for the prediction on this left one out model

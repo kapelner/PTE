@@ -1,7 +1,9 @@
 version 1.5
 
-* Support for survival regression and incidence regression
-* Better arguments / defaults and better documentation
+* Support for survival regression
+* Better arguments / defaults for the main function "PTE_bootstrap_inference"
+* Speed improvements
+* Better documentation
 
 version 1.0
 

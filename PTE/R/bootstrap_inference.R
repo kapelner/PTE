@@ -22,9 +22,9 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' 									at the end of the study or was lost to follow up will receive a censor value of 0, while someone who died during the study 
 #'                  				will receive a censor value of 1. 
 #' 									\eqn{n} and is binary where 0 indicates censorship (e.g. the patient died).   
-#' @param predict_function 			An R cfunction that will be evaluated on left out data after the model is built with the training data. This function
+#' @param predict_function 			An R function that will be evaluated on left out data after the model is built with the training data. This function
 #' 									uses the object "mod" that is the result of the \code{personalized_model_build_function} and it must make use of
-#' 									"obs_left_out", a vector of covariates representing an observation from \code{X}. This function must return a 
+#' 									"obs_left_out", a subset of observations from \code{X}. This function must return a 
 #' 									scalar numeric quantity for comparison. The default function is \code{predict(mod, obs_left_out)}.
 #' @param cleanup_mod_function 		A function that is called at the end of a cross validation iteration to cleanup the model 
 #' 									in some way. This is used for instance if you would like to release the memory your model is using but generall does not apply.
@@ -55,7 +55,7 @@ PTE_bootstrap_inference = function(X, y,
 		regression_type = "continuous",
 		personalized_model_build_function = NULL,
 		censored = NULL,
-		predict_function = function(){predict(mod, obs_left_out)},
+		predict_function = function(mod, obs_left_out){predict(mod, obs_left_out)},
 		cleanup_mod_function = NULL,
 		y_higher_is_better = TRUE,		
 		verbose = TRUE,
@@ -93,17 +93,17 @@ PTE_bootstrap_inference = function(X, y,
 	#create default for model building function - always first order model with interactions
 	if (is.null(personalized_model_build_function)){
 		personalized_model_build_function = switch(regression_type,
-			continuous = function(){
+			continuous = function(Xyleft){
 				lm(y ~ . + treatment * ., 
 					data = Xyleft)
 			},
-			incidence = function(){
+			incidence = function(Xyleft){
 				glm(y ~ . + treatment * ., 
 					data = Xyleft, 
 					family = "binomial")
 			},
-			survival = function(){
-				survreg(Surv(y, censored) ~ . + treatment, 
+			survival = function(Xyleft){
+				survreg(Surv(Xyleft$y, censored) ~ . + treatment, 
 					data = Xyleft, 
 					dist = "weibull")	
 			}
@@ -123,15 +123,8 @@ PTE_bootstrap_inference = function(X, y,
 	observed_raw_results = create_raw_results_matrix(n)
 	for (l_test in 1 : cutoff_obj$num_windows){		
 		left_out_window_test = cutoff_obj$begin_cutoffs_for_leave_outs[l_test] : cutoff_obj$end_cutoffs_for_leave_outs[l_test]
-	  	observed_raw_results[left_out_window_test, ] = run_model_on_left_out_record_results_and_cleanup( 
-				left_out_window_test,
-				left_out_window_test,
-				personalized_model_build_function, 
-		     	predict_string, 
-		    	cleanup_mod_function, 
-		    	y_higher_is_better,
-		     	full_verbose = full_verbose,
-		     	...) #all other arguments head on into the model building which is done in this function
+	  	observed_raw_results[left_out_window_test, ] = 
+			run_model_on_left_out_record_results_and_cleanup(left_out_window_test, left_out_window_test)
 	}
 	observed_run_results = create_PTE_results_object(observed_raw_results, y_higher_is_better)
 	observed_q_scores$adversarial = observed_run_results$q_adversarial
