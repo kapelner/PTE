@@ -1,19 +1,13 @@
-run_model_on_left_out_record_results_and_cleanup = function(Xy, 
+run_model_on_left_out_record_results_and_cleanup = function( 
 		leave_outs_to_be_predicted, 
-		train_on_all_except_these, 
-		model_string, 
-		predict_string, 
-		cleanup_mod_function, 
-		y_higher_is_better,
-		full_verbose = FALSE, 
-		verbose = FALSE,
+		train_on_all_except_these,
 		...){
 	
 	#the left one out matrix has n-1 rows and will be considered the "training data"
 	Xyleft = Xy[-train_on_all_except_these, ]
 	
 	#build the model via the user-specified string
-	mod = eval(parse(text = model_string)) #this function makes use of the "Xyleft" object
+	mod = personalized_model_build_function() #this function makes use of the "Xyleft" object
 	
 	#pull out the record of the left-one-out subject
 	obs_left_out = Xy[leave_outs_to_be_predicted, 1 : (ncol(Xy) - 1)]
@@ -36,8 +30,8 @@ run_model_on_left_out_record_results_and_cleanup = function(Xy,
 	}
 	
 	#if the models need to be cleaned up in some way, do it now before the next iteration of the leave-one-out
-	if (!is.na(cleanup_mod_function)){
-		eval(parse(text = cleanup_mod_function))
+	if (!is.null(cleanup_mod_function)){
+		cleanup_mod_function.call()
 	}
 	
 	#tabulate the result for the prediction on this left one out model

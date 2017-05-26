@@ -6,10 +6,13 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' p values of the two I estimates are computed for a given \eqn{H_0: \mu_{I_0} = \mu_0}{H_0: mu_I_0 = mu_0} and 
 #' confidence intervals are provided.
 #' 
-#' @param X 						A \eqn{n \times p}{n x p} dataframe of covariates.
+#' @param X 						A \eqn{n \times p}{n x p} dataframe of covariates where one column is labeled "treatment" and it
+#' 									is a binary vector of treatment allocations in the study.
 #' @param y 						An \eqn{n}-length numeric vector which is the response
-#' @param model_string 				A string of R code that will be evaluated to construct the leave one out model. Make sure the covariate data is
-#' 									referred to as \code{Xyleft}.
+#' @param personalized_model_build_function 	An R function that will be evaluated to construct the personalized medicine / recommendation 
+#' 												model. In the formula for the model, the response is "y", the treatment vector is 
+#' 												"treatment" and the data is "Xyleft". This function must return some type of object
+#' 												that can be used for prediction later via \code{predict_function}.
 #' @param regression_type			A string indicating the regression problem. Legal values are "continous" (the response \code{y} is
 #' 									a real number with no missing data, the default), "incidence" (the reponse \code{y} is
 #' 									either 0 or 1) and "survival" (the response is a time value with NA's for all uncensored
@@ -17,8 +20,10 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' 									parameter \code{censored}.
 #' @param censored					Only required if the \code{regression_type} is "survival". In this case, this vector is of length
 #' 									\eqn{n} and is binary where 0 indicates censorship (e.g. the patient died).   
-#' @param predict_string 			A string of R code that will be evaluated on left out data after the model is built with the training data. Make sure
-#' 									the forecast data (the left one out data) is referred to as \code{obs_left_out} and the model is referred to as \code{mod}.
+#' @param predict_function 			An R cfunction that will be evaluated on left out data after the model is built with the training data. This function
+#' 									uses the object "mod" that is the result of the \code{personalized_model_build_function} and it must make use of
+#' 									"obs_left_out", a vector of covariates representing an observation from \code{X}. This function must return a 
+#' 									scalar numeric quantity for comparison. The default function is \code{predict(mod, obs_left_out)}.
 #' @param cleanup_mod_function 		A function that is called at the end of a cross validation iteration to cleanup the model 
 #' 									in some way. This is used for instance if you would like to release the memory your model is using but generall does not apply.
 #' 									The default is \code{NA} for "no function."
@@ -39,19 +44,17 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' @param alpha 					Defines the confidence interval size (1 - alpha). Defaults to 0.05.
 #' @param plot 						Illustrates the estimate, the bootstrap samples and the confidence intervals on a histogram plot. Default to TRUE.
 #' @param num_cores					The number of cores to use in parallel to run the bootstrap samples more rapidly. Defaults to serial by using 1 core.   
-#' @param ... 						Additional parameters to be sent to the model constructor. Note that if you wish to pass these parameters, 
-#' 									"..." must be specified in model_string.  
 #' 
 #' @return 
 #' 
 #' @author Adam Kapelner
 #' @export
 PTE_bootstrap_inference = function(X, y,  
-		regression_type = "response",
+		regression_type = "continuous",
 		personalized_model_build_function = NULL,
 		censored = NULL,
-		predict_function = function(){predict(mod, obs_left_out);},
-		cleanup_mod_function = NA,
+		predict_function = function(){predict(mod, obs_left_out)},
+		cleanup_mod_function = NULL,
 		y_higher_is_better = TRUE,		
 		verbose = TRUE,
 		full_verbose = FALSE,
@@ -61,8 +64,8 @@ PTE_bootstrap_inference = function(X, y,
 		B = 3000,
 		alpha = 0.05,
 		plot = TRUE,
-        num_cores = 1, 
-		...){
+        num_cores = 1
+	){
 	
 	#check validity of all values that user input
 	if (!(regression_type %in% c("continuous", "incidence", "survival"))){
@@ -72,34 +75,41 @@ PTE_bootstrap_inference = function(X, y,
 		stop("If you are doing a survival regression, you must pass in a binary \"censored\" vector.")
 	}
 	
-	#data shared throughout all bootstrap simulations
-	Xy = cbind(X, y)
-	n = nrow(Xy)
-		
+	#ensure we have a treatment column in X
+	if (!("treatment" %in% colnames(X))){
+		stop("Your data frame must have a column \"\treatment\" which is an indicator vector of the allocation in the RCT.")
+	}
+	n = nrow(X)
+	if (length(y) != n){
+		stop("The response vector must have the same length as the number of observations in X.")
+	}
+	
 	if (!is.null(censored) && length(censored) != n){
 		stop("The binary \"censored\" vector must be the same length as the number of observations.")
 	}
 		
 	#create default for model building function - always first order model with interactions
 	if (is.null(personalized_model_build_function)){
-		switch(regression_type,
-				continuous = function(){
-					lm(y ~ . + treatment * ., 
-						data = Xyleft)
-				},
-				incidence = function(){
-					glm(y ~ . + treatment * ., 
-						data = Xyleft, 
-						family = "binomial")
-				},
-				survival = function(){
-					survreg(Surv(y, censored) ~ . + treatment, 
-						data = Xyleft, 
-						dist = "weibull")	
-				}
+		personalized_model_build_function = switch(regression_type,
+			continuous = function(){
+				lm(y ~ . + treatment * ., 
+					data = Xyleft)
+			},
+			incidence = function(){
+				glm(y ~ . + treatment * ., 
+					data = Xyleft, 
+					family = "binomial")
+			},
+			survival = function(){
+				survreg(Surv(y, censored) ~ . + treatment, 
+					data = Xyleft, 
+					dist = "weibull")	
+			}
 		)
 	}
 
+	Xy = cbind(X, y)
+	
 	#take care of cutoffs for leave out windows
 	cutoff_obj = create_cutoffs_for_K_fold_cv(pct_leave_out, n)	
 	
@@ -111,10 +121,10 @@ PTE_bootstrap_inference = function(X, y,
 	observed_raw_results = create_raw_results_matrix(n)
 	for (l_test in 1 : cutoff_obj$num_windows){		
 		left_out_window_test = cutoff_obj$begin_cutoffs_for_leave_outs[l_test] : cutoff_obj$end_cutoffs_for_leave_outs[l_test]
-	  	observed_raw_results[left_out_window_test, ] = run_model_on_left_out_record_results_and_cleanup(Xy, 
+	  	observed_raw_results[left_out_window_test, ] = run_model_on_left_out_record_results_and_cleanup( 
 				left_out_window_test,
 				left_out_window_test,
-		     	model_string, 
+				personalized_model_build_function, 
 		     	predict_string, 
 		    	cleanup_mod_function, 
 		    	y_higher_is_better,

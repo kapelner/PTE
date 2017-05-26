@@ -3,8 +3,7 @@
 #' @param x 								A \code{PTE_bootstrap_results} model object built via
 #' 											running the \code{PTE_bootstrap_inference} function.
 #' @param ...								Other methods passed to print
-#' @examples 
-#' 	beta0 = 1
+#' @examples beta0 = 1
 #'	beta1 = -1
 #'	gamma0 = 0
 #'	gamma1 = sqrt(2 * pi)
@@ -93,8 +92,7 @@ print.PTE_bootstrap_results = function(x, ...){
 #' @param object 					A \code{PTE_bootstrap_results} model object built via
 #' 									running the \code{PTE_bootstrap_inference} function.
 #' @param ... 						Other methods passed to summary
-#' @examples 
-#' 	beta0 = 1
+#' @examples beta0 = 1
 #'	beta1 = -1
 #'	gamma0 = 0
 #'	gamma1 = sqrt(2 * pi)
