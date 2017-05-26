@@ -11,7 +11,7 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' @param y 						An \eqn{n}-length numeric vector which is the response
 #' @param personalized_model_build_function 	An R function that will be evaluated to construct the personalized medicine / recommendation 
 #' 												model. In the formula for the model, the response is "y", the treatment vector is 
-#' 												"treatment" and the data is "Xyleft". This function must return some type of object
+#' 												"treatment" and the data is "Xytrain". This function must return some type of object
 #' 												that can be used for prediction later via \code{predict_function}.
 #' @param regression_type			A string indicating the regression problem. Legal values are "continous" (the response \code{y} is
 #' 									a real number with no missing data, the default), "incidence" (the reponse \code{y} is
@@ -95,16 +95,16 @@ PTE_bootstrap_inference = function(X, y,
 		personalized_model_build_function = switch(regression_type,
 			continuous = function(Xyleft){
 				lm(y ~ . + treatment * ., 
-					data = Xyleft)
+					data = Xytrain)
 			},
-			incidence = function(Xyleft){
+			incidence = function(Xytrain){
 				glm(y ~ . + treatment * ., 
-					data = Xyleft, 
+					data = Xytrain, 
 					family = "binomial")
 			},
-			survival = function(Xyleft){
-				survreg(Surv(Xyleft$y, Xyleft$censored) ~ (. - censored) * treatment, 
-					data = Xyleft, 
+			survival = function(Xytrain){
+				survreg(Surv(Xytrain$y, Xytrain$censored) ~ (. - censored) * treatment, 
+					data = Xytrain, 
 					dist = "weibull")
 			}
 		)
@@ -128,6 +128,7 @@ PTE_bootstrap_inference = function(X, y,
 	observed_raw_results = create_raw_results_matrix(n)
 	for (l_test in 1 : cutoff_obj$num_windows){		
 		left_out_window_test = cutoff_obj$begin_cutoffs_for_leave_outs[l_test] : cutoff_obj$end_cutoffs_for_leave_outs[l_test]
+		print(left_out_window_test)
 	  	observed_raw_results[left_out_window_test, ] = 
 			run_model_on_left_out_record_results_and_cleanup(left_out_window_test, left_out_window_test)
 	}
