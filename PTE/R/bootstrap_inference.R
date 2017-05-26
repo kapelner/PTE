@@ -15,10 +15,12 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' 												that can be used for prediction later via \code{predict_function}.
 #' @param regression_type			A string indicating the regression problem. Legal values are "continous" (the response \code{y} is
 #' 									a real number with no missing data, the default), "incidence" (the reponse \code{y} is
-#' 									either 0 or 1) and "survival" (the response is a time value with NA's for all uncensored
-#' 									responses). If the type is "survival", the user must also supply additional data via the 
+#' 									either 0 or 1) and "survival". If the type is "survival", the user must also supply additional data via the 
 #' 									parameter \code{censored}.
-#' @param censored					Only required if the \code{regression_type} is "survival". In this case, this vector is of length
+#' @param censored					Only required if the \code{regression_type} is "survival". In this case, this vector is of length \eqn{n} and is binary 
+#' 									where 0 indicates censored and 1 indicates uncensored. In a clinical trial, someone who is still alive 
+#' 									at the end of the study or was lost to follow up will receive a censor value of 0, while someone who died during the study 
+#'                  				will receive a censor value of 1. 
 #' 									\eqn{n} and is binary where 0 indicates censorship (e.g. the patient died).   
 #' @param predict_function 			An R cfunction that will be evaluated on left out data after the model is built with the training data. This function
 #' 									uses the object "mod" that is the result of the \code{personalized_model_build_function} and it must make use of
