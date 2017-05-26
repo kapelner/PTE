@@ -24,7 +24,7 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' 									\eqn{n} and is binary where 0 indicates censorship (e.g. the patient died).   
 #' @param predict_function 			An R function that will be evaluated on left out data after the model is built with the training data. This function
 #' 									uses the object "mod" that is the result of the \code{personalized_model_build_function} and it must make use of
-#' 									"obs_left_out", a subset of observations from \code{X}. This function must return a 
+#' 									"Xyleftout", a subset of observations from \code{X}. This function must return a 
 #' 									scalar numeric quantity for comparison. The default function is \code{predict(mod, obs_left_out)}.
 #' @param cleanup_mod_function 		A function that is called at the end of a cross validation iteration to cleanup the model 
 #' 									in some way. This is used for instance if you would like to release the memory your model is using but generally does not apply.
@@ -55,7 +55,7 @@ PTE_bootstrap_inference = function(X, y,
 		regression_type = "continuous",
 		personalized_model_build_function = NULL,
 		censored = NULL,
-		predict_function = function(mod, obs_left_out){predict(mod, obs_left_out)},
+		predict_function = function(mod, obs_left_out){predict(mod, Xyleftout)},
 		cleanup_mod_function = NULL,
 		y_higher_is_better = TRUE,		
 		verbose = TRUE,
@@ -103,9 +103,9 @@ PTE_bootstrap_inference = function(X, y,
 					family = "binomial")
 			},
 			survival = function(Xyleft){
-				survreg(Surv(Xyleft$y, Xyleft$censored) ~ . + treatment, 
+				survreg(Surv(Xyleft$y, Xyleft$censored) ~ (. - censored) * treatment, 
 					data = Xyleft, 
-					dist = "weibull")	
+					dist = "weibull")
 			}
 		)
 	}
@@ -115,7 +115,7 @@ PTE_bootstrap_inference = function(X, y,
 	}
 
 	#create master dataframe for convenience
-	Xy = cbind(X, y, censored)
+	Xy = cbind(X, censored, y)
 
 	#take care of cutoffs for leave out windows
 	cutoff_obj = create_cutoffs_for_K_fold_cv(pct_leave_out, n)	

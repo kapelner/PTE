@@ -5,12 +5,16 @@ run_model_on_left_out_record_results_and_cleanup = function(
 	#the left one out matrix has n-1 rows and will be considered the "training data"
 	Xyleft = Xy[-train_on_all_except_these, ]
 	
+	#pull out the record of the left-one-out subject
+	obs_left_out = Xy[leave_outs_to_be_predicted, 1 : (ncol(Xy) - 1)]
+	
+	if (regression_type != "survival"){
+		Xyleft$censored = NULL
+	}
 	#build the model via the user-specified string
 	mod = personalized_model_build_function(Xyleft) #this function makes use of the "Xyleft" object
 	print(summary(mod))
 	
-	#pull out the record of the left-one-out subject
-	obs_left_out = Xy[leave_outs_to_be_predicted, 1 : (ncol(Xy) - 1)]
 	
 	#also take note of what actually happened to this subject in the experiment
 	real_ys = Xy[leave_outs_to_be_predicted, ncol(Xy)]
@@ -35,5 +39,5 @@ run_model_on_left_out_record_results_and_cleanup = function(
 	}
 	
 	#tabulate the result for the prediction on this left one out model
-	tabulate_results_for_left_one_out_subject(orig_trts, yhatTx0s, yhatTx1s, real_ys, y_higher_is_better)
+	tabulate_results_for_left_one_out_subject(orig_trts, yhatTx0s, yhatTx1s, real_ys, obs_left_out$censored)
 }
