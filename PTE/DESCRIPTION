@@ -9,3 +9,4 @@ Description: A tool to draw inference in personalized medicine regimes
 License: GPL-3
 Depends: R (>= 3.0), doParallel, survival
 Imports: graphics, grDevices, stats
+RoxygenNote: 6.0.1
