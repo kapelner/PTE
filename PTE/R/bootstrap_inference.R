@@ -103,22 +103,27 @@ PTE_bootstrap_inference = function(X, y,
 					family = "binomial")
 			},
 			survival = function(Xyleft){
-				survreg(Surv(Xyleft$y, censored) ~ . + treatment, 
+				survreg(Surv(Xyleft$y, Xyleft$censored) ~ . + treatment, 
 					data = Xyleft, 
 					dist = "weibull")	
 			}
 		)
 	}
-
-	Xy = cbind(X, y)
 	
+	if (is.null(censored)){
+		censored = rep(NA, n)
+	}
+
+	#create master dataframe for convenience
+	Xy = cbind(X, y, censored)
+
 	#take care of cutoffs for leave out windows
 	cutoff_obj = create_cutoffs_for_K_fold_cv(pct_leave_out, n)	
 	
     ##run actual model to get observed score
     observed_run_results = list()
     observed_q_scores = list()
-  
+
 	#run oos results
 	observed_raw_results = create_raw_results_matrix(n)
 	for (l_test in 1 : cutoff_obj$num_windows){		

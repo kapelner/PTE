@@ -62,24 +62,29 @@ create_PTE_results_object = function(raw_results, y_higher_is_better){
 		return_obj$out_of_sample_Rsq = 1 - sse / sst
 	}
 
-	return_obj$pred_differences_avg = mean(abs(raw_results[, 1] - raw_results[, 2]), na.rm = TRUE)
-	return_obj$pred_differences_sd = sd(abs(raw_results[, 1] - raw_results[, 2]), na.rm = TRUE)
-	return_obj$avg_optimals = mean(c(Ra, Rd), na.rm = TRUE)
-	return_obj$avg_non_optimals = mean(c(Rb, Rc), na.rm = TRUE)
-	return_obj$avg_all = mean(c(Ra, Rb, Rc, Rd), na.rm = TRUE)
-	avg_ys_tx_1 = mean(c(Ra, Rb), na.rm = TRUE)
-	avg_ys_tx_2 = mean(c(Rc, Rd), na.rm = TRUE)
-	if (avg_ys_tx_1 >= avg_ys_tx_2 && y_higher_is_better){ #sometimes continuous data aint continuous and you can have a "measure 0" event of equality here - at equality should pick group 1 or 2 with equal prob (not done)
-		return_obj$avg_best = avg_ys_tx_1
-	} else if (avg_ys_tx_1 >= avg_ys_tx_2 && !y_higher_is_better){
-		return_obj$avg_best = avg_ys_tx_2
-	} else if (avg_ys_tx_1 < avg_ys_tx_2 && y_higher_is_better){
-		return_obj$avg_best = avg_ys_tx_2			
-	} else if (avg_ys_tx_1 < avg_ys_tx_2 && !y_higher_is_better){
-		return_obj$avg_best = avg_ys_tx_1
+	if (regression_type == "survival"){
+		
+	} else {
+		return_obj$pred_differences_avg = mean(abs(raw_results[, 1] - raw_results[, 2]), na.rm = TRUE)
+		return_obj$pred_differences_sd = sd(abs(raw_results[, 1] - raw_results[, 2]), na.rm = TRUE)
+		return_obj$avg_optimals = mean(c(Ra, Rd), na.rm = TRUE)
+		return_obj$avg_non_optimals = mean(c(Rb, Rc), na.rm = TRUE)
+		return_obj$avg_all = mean(c(Ra, Rb, Rc, Rd), na.rm = TRUE)
+		avg_ys_tx_1 = mean(c(Ra, Rb), na.rm = TRUE)
+		avg_ys_tx_2 = mean(c(Rc, Rd), na.rm = TRUE)
+		if (avg_ys_tx_1 >= avg_ys_tx_2 && y_higher_is_better){ #sometimes continuous data aint continuous and you can have a "measure 0" event of equality here - at equality should pick group 1 or 2 with equal prob (not done)
+			return_obj$avg_best = avg_ys_tx_1		
+		} else if (avg_ys_tx_1 >= avg_ys_tx_2 && !y_higher_is_better){
+			return_obj$avg_best = avg_ys_tx_2
+		} else if (avg_ys_tx_1 < avg_ys_tx_2 && y_higher_is_better){
+			return_obj$avg_best = avg_ys_tx_2			
+		} else if (avg_ys_tx_1 < avg_ys_tx_2 && !y_higher_is_better){
+			return_obj$avg_best = avg_ys_tx_1
+		}
+		return_obj$q_adversarial = return_obj$avg_optimals - return_obj$avg_non_optimals
+		return_obj$q_average = return_obj$avg_optimals - return_obj$avg_all
+		return_obj$q_best = return_obj$avg_optimals - return_obj$avg_best		
 	}
-	return_obj$q_adversarial = return_obj$avg_optimals - return_obj$avg_non_optimals
-	return_obj$q_average = return_obj$avg_optimals - return_obj$avg_all
-	return_obj$q_best = return_obj$avg_optimals - return_obj$avg_best
+
 	return_obj	
 }
