@@ -25,7 +25,40 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' @param predict_function 			An R function that will be evaluated on left out data after the model is built with the training data. This function
 #' 									uses the object "mod" that is the result of the \code{personalized_model_build_function} and it must make use of
 #' 									"Xyleftout", a subset of observations from \code{X}. This function must return a 
-#' 									scalar numeric quantity for comparison. The default function is \code{predict(mod, obs_left_out)}.
+#' 									scalar numeric quantity for comparison. The default function is \code{predict(mod, obs_left_out)} e.g. the default looks like:
+#' 
+#' 										function(mod, Xyleftout){
+#' 											predict(mod, Xyleftout)
+#' 										}
+#' 
+#' @param difference_function		A function which takes the result of one out of sample experiment (boostrap or not) of all n samples and converts it into a difference that
+#' 									will be used as a score in a score distribution to determine if the personalization model is statistically significantly able to distinguish
+#' 									subjects. The function looks as follows:
+#' 									
+#' 										function(results, indices_1_1, indices_0_0, indices_0_1, indices_1_0){
+#' 											...
+#' 											c(rec_vs_non_rec_diff_score, rec_vs_all_score, rec_vs_best_score)
+#' 										} 
+#' 
+#' 
+#' 									where \code{results} is a matrix consisting of columns of the estimated response of the treatment administered,
+#' 									the estimated response of the counterfactual treatment, the administered treatment, the recommended treatment based on the personalization
+#' 									model, the real response, and if this subject was censored (0 if so). Here are a couple of example entries:
+#' 
+#' 									      	est_true 	est_counterfactual 	given_tx 	rec_tx 	real_y 	censored
+#' 											166.8       152.2    			1       	1    	324     1
+#' 											1679.1     	2072.0    			1       	0    	160     0
+#' 
+#' 									
+#' 									The arguments \code{indices_1_1, indices_0_0, indices_0_1, indices_1_0} give the indices of the subjects whose treatment was administered 
+#' 									as 1 and whose optimal was 1, whose treatment was administered 0 and whose optimal was 0, etc.
+#' 
+#' 									This function should return three numeric scores: the recommend vs. the non-recommended (adversarial), the recommended 
+#' 									vs. all (all) and the recommended vs. the best average treatment (best) as a 3-dimensional vector as illustrated above.
+#' 
+#' 									By default, this parameter is \code{NULL} which means for continuous and incidence the average difference is used and
+#' 									for survival, the median Kaplan-Meier survival is used.
+#' 
 #' @param cleanup_mod_function 		A function that is called at the end of a cross validation iteration to cleanup the model 
 #' 									in some way. This is used for instance if you would like to release the memory your model is using but generally does not apply.
 #' 									The default is \code{NA} for "no function."
@@ -44,10 +77,14 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' 									the number of rows sampled is less than \code{n} which fixes the consistency of the bootstrap estimator of a non-smooth functional. The default 
 #' 									is 1 since non-smoothness may not be a common issue.
 #' @param alpha 					Defines the confidence interval size (1 - alpha). Defaults to 0.05.
+#' @param run_bca_bootstrap			Do the BCA bootstrap as well. This takes double the time. It defaults to \code{FALSE}.
 #' @param plot 						Illustrates the estimate, the bootstrap samples and the confidence intervals on a histogram plot. Default to TRUE.
-#' @param num_cores					The number of cores to use in parallel to run the bootstrap samples more rapidly. Defaults to serial by using 1 core.   
+#' @param num_cores					The number of cores to use in parallel to run the bootstrap samples more rapidly. 
+#' 									Defaults to \code{NULL} which automatically sets it to one if there is one available processor or
+#' 									if there are multiple available processors, the number of available processors save one.   
 #' 
-#' @return 
+#' @return 							A results object of type "PTE_bootstrap_results" that contains much information about the observed results
+#' 									and the bootstrap runs, including hypothesis testing and confidence intervals.
 #' 
 #' @author Adam Kapelner
 #' @export
@@ -55,18 +92,20 @@ PTE_bootstrap_inference = function(X, y,
 		regression_type = "continuous",
 		personalized_model_build_function = NULL,
 		censored = NULL,
-		predict_function = function(mod, obs_left_out){predict(mod, Xyleftout)},
+		predict_function = function(mod, Xyleftout){predict(mod, Xyleftout)},
+		difference_function = NULL,
 		cleanup_mod_function = NULL,
 		y_higher_is_better = TRUE,		
-		verbose = TRUE,
+		verbose = FALSE,
 		full_verbose = FALSE,
 		H_0_mu_equals = 0,
 		pct_leave_out = 0.10,
 		m_prop = 1,
 		B = 3000,
 		alpha = 0.05,
+		run_bca_bootstrap = FALSE,
 		plot = TRUE,
-        num_cores = 1
+        num_cores = NULL
 	){
 	
 	#check validity of all values that user input
@@ -76,11 +115,19 @@ PTE_bootstrap_inference = function(X, y,
 	if (regression_type == "survival" && is.null(censored)){
 		stop("If you are doing a survival regression, you must pass in a binary \"censored\" vector.")
 	}
+#	if (regression_type == "survival" && !y_higher_is_better){
+#		warning("You have a survival regression where y_higher_is_better is set to FALSE indicating lower survival times are better. Is this in error?")
+#	}
 	
 	#ensure we have a treatment column in X
 	if (!("treatment" %in% colnames(X))){
 		stop("Your data frame must have a column \"\treatment\" which is an indicator vector of the allocation in the RCT.")
 	}
+	#ensure treatment is a factor variable with levels zero and one
+	if (class(X$treatment) != "numeric" && identical(names(table(X$treatment)), c("0", "1"))){
+		stop("Your data frame must have a column \"\treatment\" which is a numeric variable with only two values: \"0\" and \"1\".")
+	}
+	
 	n = nrow(X)
 	if (length(y) != n){
 		stop("The response vector must have the same length as the number of observations in X.")
@@ -93,16 +140,16 @@ PTE_bootstrap_inference = function(X, y,
 	#create default for model building function - always first order model with interactions
 	if (is.null(personalized_model_build_function)){
 		personalized_model_build_function = switch(regression_type,
-			continuous = function(Xyleft){
+			continuous = function(Xytrain){ #defalt is OLS regression
 				lm(y ~ . + treatment * ., 
 					data = Xytrain)
 			},
-			incidence = function(Xytrain){
+			incidence = function(Xytrain){ #default is logistic regression
 				glm(y ~ . + treatment * ., 
 					data = Xytrain, 
 					family = "binomial")
 			},
-			survival = function(Xytrain){
+			survival = function(Xytrain){ #default is Weibull regression
 				survreg(Surv(Xytrain$y, Xytrain$censored) ~ (. - censored) * treatment, 
 					data = Xytrain, 
 					dist = "weibull")
@@ -128,11 +175,23 @@ PTE_bootstrap_inference = function(X, y,
 	observed_raw_results = create_raw_results_matrix(n)
 	for (l_test in 1 : cutoff_obj$num_windows){		
 		left_out_window_test = cutoff_obj$begin_cutoffs_for_leave_outs[l_test] : cutoff_obj$end_cutoffs_for_leave_outs[l_test]
-		print(left_out_window_test)
+#		print(left_out_window_test)
 	  	observed_raw_results[left_out_window_test, ] = 
-			run_model_on_left_out_record_results_and_cleanup(left_out_window_test, left_out_window_test)
+			run_model_on_left_out_record_results_and_cleanup(
+					Xy,
+					regression_type,
+					y_higher_is_better,
+					left_out_window_test, 
+					left_out_window_test,
+					personalized_model_build_function,
+					predict_function,
+					cleanup_mod_function,
+					full_verbose,
+					verbose)
 	}
-	observed_run_results = create_PTE_results_object(observed_raw_results, y_higher_is_better)
+	observed_raw_results
+	observed_run_results = create_PTE_results_object(observed_raw_results, regression_type, y_higher_is_better, difference_function)
+	observed_run_results
 	observed_q_scores$adversarial = observed_run_results$q_adversarial
 	observed_q_scores$average = observed_run_results$q_average
 	observed_q_scores$best = observed_run_results$q_best
@@ -148,10 +207,15 @@ PTE_bootstrap_inference = function(X, y,
 	q_scores[["best"]] = array(NA, B)
 	
     #will work on windows -- not sure about unix/mac
+	if (is.null(num_cores)){
+		num_cores = as.numeric(Sys.getenv('NUMBER_OF_PROCESSORS'))
+		num_cores = max(num_cores - 1, 1)
+	}
 	cluster = makeCluster(num_cores)
 	registerDoParallel(cluster)
   
 	boot_list = foreach(b = 1 : B) %dopar% {
+		library(survival)
     	iter_list = list()
     	iter_list$q_scores = list()
 		raw_results = create_raw_results_matrix(n)
@@ -161,18 +225,20 @@ PTE_bootstrap_inference = function(X, y,
 		
 		for (l_test in 1 : cutoff_obj$num_windows){
 			left_out_window_test = cutoff_obj$begin_cutoffs_for_leave_outs[l_test] : cutoff_obj$end_cutoffs_for_leave_outs[l_test]
-			raw_results[left_out_window_test, ] = run_model_on_left_out_record_results_and_cleanup(Xyb, 
-					left_out_window_test,
-					left_out_window_test,
-					model_string, 
-					predict_string, 
-					cleanup_mod_function, 
+			raw_results[left_out_window_test, ] = run_model_on_left_out_record_results_and_cleanup(
+					Xyb,
+					regression_type,
 					y_higher_is_better,
-					full_verbose = full_verbose,
-					...) #all other arguments head on into the model building which is done in this function
+					left_out_window_test,
+					left_out_window_test,
+					personalized_model_build_function,
+					predict_function,
+					cleanup_mod_function,
+					full_verbose,
+					verbose)
 		}
 		#iter_list$raw_results = raw_results
-		iter_list$run_results = create_PTE_results_object(raw_results, y_higher_is_better)
+		iter_list$run_results = create_PTE_results_object(raw_results, regression_type, y_higher_is_better, difference_function)
 		iter_list$q_scores$adversarial = ifelse(length(iter_list$run_results$q_adversarial) == 1, iter_list$run_results$q_adversarial, NA)
 		iter_list$q_scores$average = ifelse(length(iter_list$run_results$q_average) == 1, iter_list$run_results$q_average, NA)
 		iter_list$q_scores$best = ifelse(length(iter_list$run_results$q_best) == 1, iter_list$run_results$q_best, NA)
@@ -189,7 +255,6 @@ PTE_bootstrap_inference = function(X, y,
   num_bad = 0
   for (b in 1 : B){
     run_results[[b]] = boot_list[[b]]$run_results
-	#raw_results[[b]] = boot_list[[b]]$raw_results
     q_scores$adversarial[b] = boot_list[[b]]$q_scores$adversarial
     q_scores$average[b] = boot_list[[b]]$q_scores$average
     q_scores$best[b] = boot_list[[b]]$q_scores$best
@@ -221,125 +286,143 @@ PTE_bootstrap_inference = function(X, y,
 	ci_q_best = c(quantile(q_scores$best, alpha / 2), quantile(q_scores$best, 1 - alpha / 2))
   
   
-    ##BCA CIS
-    ##compute acceleration
-	bca_run_results = list()
-	bca_q_scores = list()
-	bca_q_scores[["adversarial"]] = array(NA, n)
-	bca_q_scores[["average"]] = array(NA, n)
-	bca_q_scores[["best"]] = array(NA, n)
+
 	
-	#due to the jacknife, we now need new beginning and endpoints in the sliding window
-	cutoff_obj = create_cutoffs_for_K_fold_cv(pct_leave_out, n - 1)
-
-    ###leave out data point out and run procedure
-    full_list = foreach(i = 1 : n) %dopar%{
-	    iter_list = list() 
-	    iter_list$bca_q_scores = list()
-	    
-	    bca_raw_results = create_raw_results_matrix(n - 1)
-	    Xy_minus_i = Xy[-i, ]
-			    
-		for (l_test in 1 : cutoff_obj$num_windows){
-			left_out_window_test = cutoff_obj$begin_cutoffs_for_leave_outs[l_test] : cutoff_obj$end_cutoffs_for_leave_outs[l_test]
-	    	bca_raw_results[left_out_window_test, ] = run_model_on_left_out_record_results_and_cleanup(Xy_minus_i, 
-					left_out_window_test,
-					left_out_window_test,
-			        model_string, 
-			        predict_string, 
-			        cleanup_mod_function, 
-			        y_higher_is_better,
-			        full_verbose = full_verbose,
-			        ...) #all other arguments head on into the model building which is done in this function
-	    }
-	    iter_list$bca_run_results = create_PTE_results_object(bca_raw_results, y_higher_is_better)
-	    iter_list$bca_q_scores$adversarial = iter_list$bca_run_results$q_adversarial
-	    iter_list$bca_q_scores$average = iter_list$bca_run_results$q_average
-	    iter_list$bca_q_scores$best = iter_list$bca_run_results$q_best
 	
-	    if (verbose){
-	      cat(".")
-	    }
-	    iter_list
-  	}
-	
+	if (run_bca_bootstrap){
+		
+		##need to deal with the reversal of signs -- just flip sign if y_higher_is_better is FALSE
+		if (!y_higher_is_better){
+			observed_q_scores$adversarial =  -observed_q_scores$adversarial
+			observed_q_scores$average = -observed_q_scores$average
+			observed_q_scores$best = -observed_q_scores$best
+			q_scores$adversarial = -q_scores$adversarial
+			q_scores$average = -q_scores$average
+			q_scores$best = -q_scores$best
+		}
+		
+		
+		##BCA CIS
+		##compute acceleration
+		bca_run_results = list()
+		bca_q_scores = list()
+		bca_q_scores[["adversarial"]] = array(NA, n)
+		bca_q_scores[["average"]] = array(NA, n)
+		bca_q_scores[["best"]] = array(NA, n)
+		
+		#due to the jacknife, we now need new beginning and endpoints in the sliding window
+		cutoff_obj = create_cutoffs_for_K_fold_cv(pct_leave_out, n - 1)
+		
+		###leave out data point out and run procedure
+		full_list = foreach(i = 1 : n) %dopar%{
+			iter_list = list() 
+			iter_list$bca_q_scores = list()
+			
+			bca_raw_results = create_raw_results_matrix(n - 1)
+			Xy_minus_i = Xy[-i, ]
+			
+			for (l_test in 1 : cutoff_obj$num_windows){
+				left_out_window_test = cutoff_obj$begin_cutoffs_for_leave_outs[l_test] : cutoff_obj$end_cutoffs_for_leave_outs[l_test]
+				bca_raw_results[left_out_window_test, ] = run_model_on_left_out_record_results_and_cleanup(
+						Xy_minus_i,
+						regression_type,
+						y_higher_is_better,
+						left_out_window_test,
+						left_out_window_test,
+						personalized_model_build_function,
+						predict_function,
+						cleanup_mod_function,
+						full_verbose,
+						verbose)
+			}
+			iter_list$bca_run_results = create_PTE_results_object(bca_raw_results, regression_type, y_higher_is_better, difference_function)
+			iter_list$bca_q_scores$adversarial = iter_list$bca_run_results$q_adversarial
+			iter_list$bca_q_scores$average = iter_list$bca_run_results$q_average
+			iter_list$bca_q_scores$best = iter_list$bca_run_results$q_best
+			
+			if (verbose){
+				cat(".")
+			}
+			iter_list
+		}
+		
+		
+		
+		#fill in vecs
+		for (i in 1 : n){
+			bca_run_results[[i]] = full_list[[i]]$run_results ##do we use this?
+			bca_q_scores$adversarial[i] = full_list[[i]]$bca_q_scores$adversarial
+			bca_q_scores$average[i] = full_list[[i]]$bca_q_scores$average
+			bca_q_scores$best[i] = full_list[[i]]$bca_q_scores$best
+		}
+		
+		stopCluster(cluster) ## remove cluster
+		
+		##need to deal with the reversal of signs -- just flip sign if y_higher_is_better is FALSE
+		if (!y_higher_is_better){
+			bca_q_scores$adversarial = -bca_q_scores$adversarial
+			bca_q_scores$average = -bca_q_scores$average
+			bca_q_scores$best = -bca_q_scores$best
+		}
+		
+		##now compute the accelerations
+		diff_adversarial = mean(bca_q_scores$adversarial) - bca_q_scores$adversarial
+		a_adversarial = sum(diff_adversarial^3) / (6*sum(diff_adversarial^2)^1.5)
+		
+		diff_average = mean(bca_q_scores$average) - bca_q_scores$average
+		a_average = sum(diff_average^3) / (6*sum(diff_average^2)^1.5)
+		
+		diff_best = mean(bca_q_scores$best) - bca_q_scores$best
+		a_best = sum(diff_best^3) / (6*sum(diff_best^2)^1.5)
+		
+		##z0 values
+		z0_adversarial =  qnorm(sum(q_scores$adversarial <= observed_q_scores$adversarial)/length(q_scores$adversarial)) ## proportion less than estimate
+		z0_average =  qnorm(sum(q_scores$average <= observed_q_scores$average)/length(q_scores$average)) ## proportion less than estimate
+		z0_best =  qnorm(sum(q_scores$best <= observed_q_scores$best)/length(q_scores$best)) ## proportion less than estimate
+		
+		##Now compute bca CIs
+		left_adversarial = z0_adversarial + qnorm(alpha/2)
+		right_adversarial = z0_adversarial + qnorm(1 - alpha/2)
+		bca_ci_q_adversarial_quantiles = c(pnorm(z0_adversarial + (left_adversarial)/(1 - a_adversarial * left_adversarial)),
+				pnorm(z0_adversarial + (right_adversarial)/(1 - a_adversarial * right_adversarial)))
+		
+		left_average = z0_average + qnorm(alpha/2)
+		right_average = z0_average + qnorm(1 - alpha/2)
+		bca_ci_q_average_quantiles = c(pnorm(z0_average + (left_average)/(1 - a_average * left_average)),
+				pnorm(z0_average + (right_average)/(1 - a_average * right_average)))
+		
+		left_best = z0_best + qnorm(alpha/2)
+		right_best = z0_best + qnorm(1 - alpha/2)
+		bca_ci_q_best_quantiles = c(pnorm(z0_best + (left_best)/(1 - a_best * left_best)),
+				pnorm(z0_best + (right_best)/(1 - a_best * right_best)))
+		
+		bca_ci_q_adversarial = quantile(q_scores$adversarial, probs = bca_ci_q_adversarial_quantiles)
+		bca_ci_q_average = quantile(q_scores$average, probs = bca_ci_q_average_quantiles)
+		bca_ci_q_best = quantile(q_scores$best, probs = bca_ci_q_best_quantiles)  
+		
+		
+		##convert back to correctly signed units if y_higher_is_better is false
+		if (!y_higher_is_better){
+			
+			observed_q_scores$adversarial = -observed_q_scores$adversarial
+			observed_q_scores$average = -observed_q_scores$average
+			observed_q_scores$best = -observed_q_scores$best 
+			
+			q_scores$adversarial = -q_scores$adversarial
+			q_scores$average = -q_scores$average
+			q_scores$best = -q_scores$best
+			
+			
+			bca_q_scores$adversarial = -bca_q_scores$adversarial
+			bca_q_scores$average = -bca_q_scores$average
+			bca_q_scores$best = -bca_q_scores$best
+			
+			bca_ci_q_adversarial = -bca_ci_q_adversarial[2:1]
+			bca_ci_q_average = -bca_ci_q_average[2:1]
+			bca_ci_q_best = -bca_ci_q_best[2:1]
+		}
+	}
 
-
-    #fill in vecs
-	for (i in 1 : n){
-	  bca_run_results[[i]] = full_list[[i]]$run_results ##do we use this?
-	  bca_q_scores$adversarial[i] = full_list[[i]]$bca_q_scores$adversarial
-	  bca_q_scores$average[i] = full_list[[i]]$bca_q_scores$average
-  	  bca_q_scores$best[i] = full_list[[i]]$bca_q_scores$best
-  	}
-  
-    stopCluster(cluster) ## remove cluster
-
-    ##need to deal with the reversal of signs -- just flip sign if y_higher_is_better is FALSE
-    if (!y_higher_is_better){
-      bca_q_scores$adversarial = -bca_q_scores$adversarial
-      bca_q_scores$average = -bca_q_scores$average
-      bca_q_scores$best = -bca_q_scores$best
-      observed_q_scores$adversarial =  -observed_q_scores$adversarial
-      observed_q_scores$average = -observed_q_scores$average
-      observed_q_scores$best = -observed_q_scores$best
-      q_scores$adversarial = -q_scores$adversarial
-      q_scores$average = -q_scores$average
-      q_scores$best = -q_scores$best
-    }
-
-    ##now compute the accelerations
-    diff_adversarial = mean(bca_q_scores$adversarial) - bca_q_scores$adversarial
-    a_adversarial = sum(diff_adversarial^3) / (6*sum(diff_adversarial^2)^1.5)
-  
-	diff_average = mean(bca_q_scores$average) - bca_q_scores$average
-	a_average = sum(diff_average^3) / (6*sum(diff_average^2)^1.5)
-
-    diff_best = mean(bca_q_scores$best) - bca_q_scores$best
-    a_best = sum(diff_best^3) / (6*sum(diff_best^2)^1.5)
-    
-    ##z0 values
-    z0_adversarial =  qnorm(sum(q_scores$adversarial <= observed_q_scores$adversarial)/length(q_scores$adversarial)) ## proportion less than estimate
-	z0_average =  qnorm(sum(q_scores$average <= observed_q_scores$average)/length(q_scores$average)) ## proportion less than estimate
-	z0_best =  qnorm(sum(q_scores$best <= observed_q_scores$best)/length(q_scores$best)) ## proportion less than estimate
-
-    ##Now compute bca CIs
-    left_adversarial = z0_adversarial + qnorm(alpha/2)
-    right_adversarial = z0_adversarial + qnorm(1 - alpha/2)
-	bca_ci_q_adversarial_quantiles = c(pnorm(z0_adversarial + (left_adversarial)/(1 - a_adversarial * left_adversarial)),
-	                         pnorm(z0_adversarial + (right_adversarial)/(1 - a_adversarial * right_adversarial)))
-
-    left_average = z0_average + qnorm(alpha/2)
-    right_average = z0_average + qnorm(1 - alpha/2)
-    bca_ci_q_average_quantiles = c(pnorm(z0_average + (left_average)/(1 - a_average * left_average)),
-                         pnorm(z0_average + (right_average)/(1 - a_average * right_average)))
-
-    left_best = z0_best + qnorm(alpha/2)
-    right_best = z0_best + qnorm(1 - alpha/2)
-    bca_ci_q_best_quantiles = c(pnorm(z0_best + (left_best)/(1 - a_best * left_best)),
-                         pnorm(z0_best + (right_best)/(1 - a_best * right_best)))
-
-    bca_ci_q_adversarial = quantile(q_scores$adversarial, probs = bca_ci_q_adversarial_quantiles)
-	bca_ci_q_average = quantile(q_scores$average, probs = bca_ci_q_average_quantiles)
-	bca_ci_q_best = quantile(q_scores$best, probs = bca_ci_q_best_quantiles)  
-
-
-    ##convert back to correctly signed units if y_higher_is_better is false
-    if (!y_higher_is_better){
-      bca_q_scores$adversarial = -bca_q_scores$adversarial
-      bca_q_scores$average = -bca_q_scores$average
-      bca_q_scores$best = -bca_q_scores$best
-      observed_q_scores$adversarial = -observed_q_scores$adversarial
-      observed_q_scores$average = -observed_q_scores$average
-      observed_q_scores$best = -observed_q_scores$best   
-      q_scores$adversarial = -q_scores$adversarial
-      q_scores$average = -q_scores$average
-      q_scores$best = -q_scores$best    
-    
-      bca_ci_q_adversarial = -bca_ci_q_adversarial[2:1]
-      bca_ci_q_average = -bca_ci_q_average[2:1]
-      bca_ci_q_best = -bca_ci_q_best[2:1]
-    }
 	
 	if (plot){
 		min_q = min(q_scores$average, q_scores$best)
@@ -349,14 +432,18 @@ PTE_bootstrap_inference = function(X, y,
 		abline(v = est_q_average, col = "forestgreen", lwd = 3)
 		abline(v = ci_q_average[1], col = "firebrick3", lwd = 1)
 		abline(v = ci_q_average[2], col = "firebrick3", lwd = 1)
-		abline(v = bca_ci_q_average[1], col = "dodgerblue3", lwd = 1)
-		abline(v = bca_ci_q_average[2], col = "dodgerblue3", lwd = 1)
+		if (run_bca_bootstrap){
+			abline(v = bca_ci_q_average[1], col = "dodgerblue3", lwd = 1)
+			abline(v = bca_ci_q_average[2], col = "dodgerblue3", lwd = 1)
+		}
 		hist(q_scores$best, br = B / 3, xlab = "I", xlim = c(min_q, max_q), main = "Best I's")
 		abline(v = est_q_best, col = "forestgreen", lwd = 3)
 		abline(v = ci_q_best[1], col = "firebrick3", lwd = 1)
-		abline(v = ci_q_best[2], col = "firebrick3", lwd = 1)	
-		abline(v = bca_ci_q_best[1], col = "dodgerblue3", lwd = 1)
-		abline(v = bca_ci_q_best[2], col = "dodgerblue3", lwd = 1)
+		abline(v = ci_q_best[2], col = "firebrick3", lwd = 1)
+		if (run_bca_bootstrap){
+			abline(v = bca_ci_q_best[1], col = "dodgerblue3", lwd = 1)
+			abline(v = bca_ci_q_best[2], col = "dodgerblue3", lwd = 1)
+		}
 	}
 	
 	#print a warning message if need be
@@ -366,10 +453,10 @@ PTE_bootstrap_inference = function(X, y,
 	
 	return_obj = list()
 	return_obj$Xy = Xy
-	return_obj$model_string = model_string
-	return_obj$predict_string = predict_string
+	return_obj$personalized_model_build_function = personalized_model_build_function
+	return_obj$predict_function = predict_function
 	return_obj$y_higher_is_better = y_higher_is_better
-	#return_obj$raw_results = raw_results
+	return_obj$difference_function = difference_function
 	return_obj$run_results = run_results
 	return_obj$num_bad = num_bad
     return_obj$observed_q_adversarial = observed_q_scores$adversarial
@@ -386,9 +473,11 @@ PTE_bootstrap_inference = function(X, y,
 	return_obj$ci_q_adversarial = ci_q_adversarial
 	return_obj$ci_q_average = ci_q_average
 	return_obj$ci_q_best = ci_q_best
-    return_obj$bca_ci_q_adversarial = bca_ci_q_adversarial
-    return_obj$bca_ci_q_average = bca_ci_q_average
-    return_obj$bca_ci_q_best = bca_ci_q_best
+	if (run_bca_bootstrap){
+	    return_obj$bca_ci_q_adversarial = bca_ci_q_adversarial
+	    return_obj$bca_ci_q_average = bca_ci_q_average
+	    return_obj$bca_ci_q_best = bca_ci_q_best
+	}
 	class(return_obj) = "PTE_bootstrap_results"
 	return_obj
 }

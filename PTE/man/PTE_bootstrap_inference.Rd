@@ -6,10 +6,12 @@
 \usage{
 PTE_bootstrap_inference(X, y, regression_type = "continuous",
   personalized_model_build_function = NULL, censored = NULL,
-  predict_function = function() {     predict(mod, obs_left_out) },
-  cleanup_mod_function = NULL, y_higher_is_better = TRUE, verbose = TRUE,
-  full_verbose = FALSE, H_0_mu_equals = 0, pct_leave_out = 0.1,
-  m_prop = 1, B = 3000, alpha = 0.05, plot = TRUE, num_cores = 1)
+  predict_function = function(mod, Xyleftout) {     predict(mod, Xyleftout) },
+  difference_function = NULL, cleanup_mod_function = NULL,
+  y_higher_is_better = TRUE, verbose = FALSE, full_verbose = FALSE,
+  H_0_mu_equals = 0, pct_leave_out = 0.1, m_prop = 1, B = 3000,
+  alpha = 0.05, run_bca_bootstrap = FALSE, plot = TRUE,
+  num_cores = NULL)
 }
 \arguments{
 \item{X}{A \eqn{n \times p}{n x p} dataframe of covariates where one column is labeled "treatment" and it
@@ -24,7 +26,7 @@ parameter \code{censored}.}
 
 \item{personalized_model_build_function}{An R function that will be evaluated to construct the personalized medicine / recommendation 
 model. In the formula for the model, the response is "y", the treatment vector is 
-"treatment" and the data is "Xyleft". This function must return some type of object
+"treatment" and the data is "Xytrain". This function must return some type of object
 that can be used for prediction later via \code{predict_function}.}
 
 \item{censored}{Only required if the \code{regression_type} is "survival". In this case, this vector is of length \eqn{n} and is binary 
@@ -33,10 +35,42 @@ that can be used for prediction later via \code{predict_function}.}
 will receive a censor value of 1. 
    \eqn{n} and is binary where 0 indicates censorship (e.g. the patient died).}
 
-\item{predict_function}{An R cfunction that will be evaluated on left out data after the model is built with the training data. This function
-uses the object "mod" that is the result of the \code{personalized_model_build_function} and it must make use of
-"obs_left_out", a vector of covariates representing an observation from \code{X}. This function must return a 
-scalar numeric quantity for comparison. The default function is \code{predict(mod, obs_left_out)}.}
+\item{predict_function}{An R function that will be evaluated on left out data after the model is built with the training data. This function
+                                    uses the object "mod" that is the result of the \code{personalized_model_build_function} and it must make use of
+                                    "Xyleftout", a subset of observations from \code{X}. This function must return a 
+                                    scalar numeric quantity for comparison. The default function is \code{predict(mod, obs_left_out)} e.g. the default looks like:
+
+                                        function(mod, Xyleftout){
+                                            predict(mod, Xyleftout)
+                                        }}
+
+\item{difference_function}{A function which takes the result of one out of sample experiment (boostrap or not) of all n samples and converts it into a difference that
+                                    will be used as a score in a score distribution to determine if the personalization model is statistically significantly able to distinguish
+                                    subjects. The function looks as follows:
+                                    
+                                        function(results, indices_1_1, indices_0_0, indices_0_1, indices_1_0){
+                                            ...
+                                            c(rec_vs_non_rec_diff_score, rec_vs_all_score, rec_vs_best_score)
+                                        } 
+
+
+                                    where \code{results} is a matrix consisting of columns of the estimated response of the treatment administered,
+                                    the estimated response of the counterfactual treatment, the administered treatment, the recommended treatment based on the personalization
+                                    model, the real response, and if this subject was censored (0 if so). Here are a couple of example entries:
+
+                                              est_true     est_counterfactual     given_tx     rec_tx     real_y     censored
+                                            166.8       152.2                1           1        324     1
+                                            1679.1         2072.0                1           0        160     0
+
+                                    
+                                    The arguments \code{indices_1_1, indices_0_0, indices_0_1, indices_1_0} give the indices of the subjects whose treatment was administered 
+                                    as 1 and whose optimal was 1, whose treatment was administered 0 and whose optimal was 0, etc.
+
+                                    This function should return three numeric scores: the recommend vs. the non-recommended (adversarial), the recommended 
+                                    vs. all (all) and the recommended vs. the best average treatment (best) as a 3-dimensional vector as illustrated above.
+
+                                    By default, this parameter is \code{NULL} which means for continuous and incidence the average difference is used and
+                                    for survival, the median Kaplan-Meier survival is used.}
 
 \item{cleanup_mod_function}{A function that is called at the end of a cross validation iteration to cleanup the model 
 in some way. This is used for instance if you would like to release the memory your model is using but generally does not apply.
@@ -65,12 +99,17 @@ The default is 3000.}
 
 \item{alpha}{Defines the confidence interval size (1 - alpha). Defaults to 0.05.}
 
+\item{run_bca_bootstrap}{Do the BCA bootstrap as well. This takes double the time. It defaults to \code{FALSE}.}
+
 \item{plot}{Illustrates the estimate, the bootstrap samples and the confidence intervals on a histogram plot. Default to TRUE.}
 
-\item{num_cores}{The number of cores to use in parallel to run the bootstrap samples more rapidly. Defaults to serial by using 1 core.}
+\item{num_cores}{The number of cores to use in parallel to run the bootstrap samples more rapidly. 
+Defaults to \code{NULL} which automatically sets it to one if there is one available processor or
+if there are multiple available processors, the number of available processors save one.}
 }
 \value{
-
+A results object of type "PTE_bootstrap_results" that contains much information about the observed results
+									and the bootstrap runs, including hypothesis testing and confidence intervals.
 }
 \description{
 Runs B bootstrap samples using a prespecified model then computes the two I estimates based on cross validation. 
