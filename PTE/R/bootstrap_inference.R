@@ -17,6 +17,21 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' 									a real number with no missing data, the default), "incidence" (the reponse \code{y} is
 #' 									either 0 or 1) and "survival". If the type is "survival", the user must also supply additional data via the 
 #' 									parameter \code{censored}.
+#' @param incidence_metric			If the \code{regression_type} is "incidence", this parameter allows the user to select
+#' 
+#' 
+#' 
+#' 
+#' 
+#' 
+#' 
+#' 
+#' 
+#' 
+#' 
+#' 
+#' 
+#' 
 #' @param censored					Only required if the \code{regression_type} is "survival". In this case, this vector is of length \eqn{n} and is binary 
 #' 									where 0 indicates censored and 1 indicates uncensored. In a clinical trial, someone who is still alive 
 #' 									at the end of the study or was lost to follow up will receive a censor value of 0, while someone who died during the study 
@@ -90,6 +105,7 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' @export
 PTE_bootstrap_inference = function(X, y,  
 		regression_type = "continuous",
+		incidence_metric = "odds_ratio",
 		personalized_model_build_function = NULL,
 		censored = NULL,
 		predict_function = function(mod, Xyleftout){predict(mod, Xyleftout)},
