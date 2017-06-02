@@ -41,6 +41,8 @@ y = ifelse(y > 15, 0, 1) #force incidence here
 
 library(PTE)
 pte_results = PTE_bootstrap_inference(X, y, regression_type = "incidence", B = 200)
+pte_results = PTE_bootstrap_inference(X, y, regression_type = "incidence", incidence_metric = "risk_ratio", B = 200)
+pte_results = PTE_bootstrap_inference(X, y, regression_type = "incidence", incidence_metric = "probability_difference", B = 200)
 
 
 

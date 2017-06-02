@@ -17,21 +17,10 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' 									a real number with no missing data, the default), "incidence" (the reponse \code{y} is
 #' 									either 0 or 1) and "survival". If the type is "survival", the user must also supply additional data via the 
 #' 									parameter \code{censored}.
-#' @param incidence_metric			If the \code{regression_type} is "incidence", this parameter allows the user to select
-#' 
-#' 
-#' 
-#' 
-#' 
-#' 
-#' 
-#' 
-#' 
-#' 
-#' 
-#' 
-#' 
-#' 
+#' @param incidence_metric			Ignored unless the \code{regression_type} is "incidence" and \code{difference_function} is set to \code{NULL} (in 
+#' 									the latter case, you have specified a more custom metric). Then, this parameter allows the user to select which 
+#' 									of the three standard metrics to use for comparison: "probability_difference", "risk_ratio", "odds_ratio" where 
+#' 									the default is "odds_ratio". 
 #' @param censored					Only required if the \code{regression_type} is "survival". In this case, this vector is of length \eqn{n} and is binary 
 #' 									where 0 indicates censored and 1 indicates uncensored. In a clinical trial, someone who is still alive 
 #' 									at the end of the study or was lost to follow up will receive a censor value of 0, while someone who died during the study 
@@ -82,8 +71,10 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' 									in a weight-loss trial). Default is \code{TRUE}.
 #' @param verbose 					Prints out a dot for each bootstrap sample. This only works on some platforms.
 #' @param full_verbose 				Prints out full information for each cross validation model for each bootstrap sample. This only works on some platforms.
-#' @param H_0_mu_equals 			The \eqn{\mu_{I_0}}{mu_I_0} value in \eqn{H_0}{H_0}. Default is 0 which answers the question: does my allocation procedure do better than a naive
-#' 									allocation procedure.
+#' @param H_0_mu_equals 			The \eqn{\mu_{I_0}}{mu_I_0} value in \eqn{H_0}{H_0}. Default is \code{NULL} which specifies 0 for regression types continuous,
+#' 									survival and incidence (with incidence metric "probability_difference") or 1 if the regression type is incidence and the incidence
+#' 									metric is "risk_ratio" or "odds_ratio". These defaults essentially answer the question: does my allocation procedure do better 
+#' 									than the business-as-usual / naive allocation procedure?
 #' @param pct_leave_out 			In the cross-validation, the proportion of the original dataset left out to estimate out-of-sample metrics. The default is 0.1
 #' 									which corresponds to 10-fold cross validation.
 #' @param B 						The number of bootstrap samples to take. We recommend making this as high as you can tolerate given speed considerations.
@@ -114,7 +105,7 @@ PTE_bootstrap_inference = function(X, y,
 		y_higher_is_better = TRUE,		
 		verbose = FALSE,
 		full_verbose = FALSE,
-		H_0_mu_equals = 0,
+		H_0_mu_equals = NULL,
 		pct_leave_out = 0.10,
 		m_prop = 1,
 		B = 3000,
@@ -129,11 +120,24 @@ PTE_bootstrap_inference = function(X, y,
 		stop("The \"regression_type\" argument must be one of the following three:\n  continuous, incidence, survival.\n")
 	}
 	if (regression_type == "survival" && is.null(censored)){
-		stop("If you are doing a survival regression, you must pass in a binary \"censored\" vector.")
+		stop("If you are doing a survival comparison, you must pass in a binary \"censored\" vector.")
 	}
 #	if (regression_type == "survival" && !y_higher_is_better){
 #		warning("You have a survival regression where y_higher_is_better is set to FALSE indicating lower survival times are better. Is this in error?")
 #	}
+	if (regression_type == "incidence" && is.null(difference_function) && !(incidence_metric %in% c("probability_difference", "risk_ratio", "odds_ratio"))){
+		stop("If you are doing an incidence comparison, the \"incidence_metric\" parameter must be one of the following: \"probability_difference\", \"risk_ratio\" or \"odds_ratio\".")
+	}
+	
+	if (is.null(H_0_mu_equals)){
+		if (regression_type != "incidence"){
+			H_0_mu_equals = 0
+		} else if (incidence_metric == "risk_ratio" || incidence_metric == "odds_ratio"){
+			H_0_mu_equals = 1
+		} else {
+			H_0_mu_equals = 0
+		}
+	}
 	
 	#ensure we have a treatment column in X
 	if (!("treatment" %in% colnames(X))){
@@ -206,7 +210,7 @@ PTE_bootstrap_inference = function(X, y,
 					verbose)
 	}
 	observed_raw_results
-	observed_run_results = create_PTE_results_object(observed_raw_results, regression_type, y_higher_is_better, difference_function)
+	observed_run_results = create_PTE_results_object(observed_raw_results, regression_type, y_higher_is_better, difference_function, incidence_metric)
 	observed_run_results
 	observed_q_scores$adversarial = observed_run_results$q_adversarial
 	observed_q_scores$average = observed_run_results$q_average
@@ -254,7 +258,7 @@ PTE_bootstrap_inference = function(X, y,
 					verbose)
 		}
 		#iter_list$raw_results = raw_results
-		iter_list$run_results = create_PTE_results_object(raw_results, regression_type, y_higher_is_better, difference_function)
+		iter_list$run_results = create_PTE_results_object(raw_results, regression_type, y_higher_is_better, difference_function, incidence_metric)
 		iter_list$q_scores$adversarial = ifelse(length(iter_list$run_results$q_adversarial) == 1, iter_list$run_results$q_adversarial, NA)
 		iter_list$q_scores$average = ifelse(length(iter_list$run_results$q_average) == 1, iter_list$run_results$q_average, NA)
 		iter_list$q_scores$best = ifelse(length(iter_list$run_results$q_best) == 1, iter_list$run_results$q_best, NA)
@@ -351,7 +355,7 @@ PTE_bootstrap_inference = function(X, y,
 						full_verbose,
 						verbose)
 			}
-			iter_list$bca_run_results = create_PTE_results_object(bca_raw_results, regression_type, y_higher_is_better, difference_function)
+			iter_list$bca_run_results = create_PTE_results_object(bca_raw_results, regression_type, y_higher_is_better, difference_function, incidence_metric)
 			iter_list$bca_q_scores$adversarial = iter_list$bca_run_results$q_adversarial
 			iter_list$bca_q_scores$average = iter_list$bca_run_results$q_average
 			iter_list$bca_q_scores$best = iter_list$bca_run_results$q_best
@@ -441,10 +445,21 @@ PTE_bootstrap_inference = function(X, y,
 
 	
 	if (plot){
+		if (regression_type == "continuous"){
+			xlab = "I (avg. response difference)"
+		} else if (regression_type == "survival"){
+			xlab = "I (avg. survival difference)"
+		} else if (incidence_metric == "probability_difference"){
+			xlab = "I (avg. probability difference)"
+		} else if (incidence_metric == "risk_ratio"){
+			xlab = "I (avg. risk ratio)"
+		} else if (incidence_metric == "odds_ratio"){
+			xlab = "I (avg. odds ratio)"
+		}
 		min_q = min(q_scores$average, q_scores$best)
 		max_q = max(q_scores$average, q_scores$best)
 		par(mfrow = c(2, 1))
-		hist(q_scores$average, br = B / 3, xlab = "I", xlim = c(min_q, max_q), main = "Average I's")
+		hist(q_scores$average, br = B / 3, xlab = xlab, xlim = c(min_q, max_q), main = "Average I's")
 		abline(v = est_q_average, col = "forestgreen", lwd = 3)
 		abline(v = ci_q_average[1], col = "firebrick3", lwd = 1)
 		abline(v = ci_q_average[2], col = "firebrick3", lwd = 1)
@@ -452,7 +467,7 @@ PTE_bootstrap_inference = function(X, y,
 			abline(v = bca_ci_q_average[1], col = "dodgerblue3", lwd = 1)
 			abline(v = bca_ci_q_average[2], col = "dodgerblue3", lwd = 1)
 		}
-		hist(q_scores$best, br = B / 3, xlab = "I", xlim = c(min_q, max_q), main = "Best I's")
+		hist(q_scores$best, br = B / 3, xlab = xlab, xlim = c(min_q, max_q), main = "Best I's")
 		abline(v = est_q_best, col = "forestgreen", lwd = 3)
 		abline(v = ci_q_best[1], col = "firebrick3", lwd = 1)
 		abline(v = ci_q_best[2], col = "firebrick3", lwd = 1)

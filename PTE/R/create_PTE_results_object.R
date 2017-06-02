@@ -1,4 +1,4 @@
-create_PTE_results_object = function(results, regression_type, y_higher_is_better, difference_function){
+create_PTE_results_object = function(results, regression_type, y_higher_is_better, difference_function, incidence_metric){
 	n = nrow(results)
 	
 	#build return object for the user
@@ -56,14 +56,64 @@ create_PTE_results_object = function(results, regression_type, y_higher_is_bette
 		return_obj$pct_data_used = round(ns[3, 3] / n * 100, 3)
 	
 		
-		if (regression_type == "continuous"){
-			sse = sum((results$real_y - results$est_true)^2, na.rm = TRUE)
-			return_obj$oos_rmse = sqrt(sse / n)
-			sst = sum((results$real_y - mean(results$real_y, na.rm = TRUE))^2, na.rm = TRUE)
-			return_obj$out_of_sample_Rsq = 1 - sse / sst
-		}
-	
-		if (regression_type == "survival"){
+
+		
+		if (regression_type == "continuous" || (regression_type == "incidence" && incidence_metric == "probability_difference")){
+			return_obj$pred_differences_avg = mean(abs(results[, 1] - results[, 2]), na.rm = TRUE)
+			return_obj$pred_differences_sd = sd(abs(results[, 1] - results[, 2]), na.rm = TRUE)
+			return_obj$avg_rec = mean(c(Y00, Y11), na.rm = TRUE)
+			return_obj$avg_non_rec = mean(c(Y01, Y10), na.rm = TRUE)
+			return_obj$avg_all = mean(c(Y00, Y01, Y10, Y11), na.rm = TRUE)
+			avg_ys_tx_1 = mean(c(Y00, Y01), na.rm = TRUE)
+			avg_ys_tx_2 = mean(c(Y10, Y11), na.rm = TRUE)
+			if (avg_ys_tx_1 >= avg_ys_tx_2 && y_higher_is_better){ #sometimes continuous data aint continuous and you can have a "measure 0" event of equality here - at equality should pick group 1 or 2 with equal prob (not done)
+				return_obj$avg_best = avg_ys_tx_1		
+			} else if (avg_ys_tx_1 >= avg_ys_tx_2 && !y_higher_is_better){
+				return_obj$avg_best = avg_ys_tx_2
+			} else if (avg_ys_tx_1 < avg_ys_tx_2 && y_higher_is_better){
+				return_obj$avg_best = avg_ys_tx_2			
+			} else if (avg_ys_tx_1 < avg_ys_tx_2 && !y_higher_is_better){
+				return_obj$avg_best = avg_ys_tx_1
+			}
+			return_obj$q_adversarial = return_obj$avg_rec - return_obj$avg_non_rec
+			return_obj$q_average = return_obj$avg_rec - return_obj$avg_all
+			return_obj$q_best = return_obj$avg_rec - return_obj$avg_best
+			#some more metrics that may be of use for the continuous case
+			if (regression_type == "continuous" ){
+				sse = sum((results$real_y - results$est_true)^2, na.rm = TRUE)
+				return_obj$oos_rmse = sqrt(sse / n)
+				sst = sum((results$real_y - mean(results$real_y, na.rm = TRUE))^2, na.rm = TRUE)
+				return_obj$out_of_sample_Rsq = 1 - sse / sst
+			}
+		} else if (regression_type == "incidence"){
+			#set up all the data
+			p_all = mean(y_all, na.rm = TRUE)
+			p_rec = mean(c(Y00, Y11), na.rm = TRUE)
+			p_non_rec = mean(c(Y01, Y10), na.rm = TRUE)
+			p_1 = mean(c(Y10, Y11), na.rm = TRUE)
+			p_0 = mean(c(Y00, Y01), na.rm = TRUE)
+			
+			if (p_1 >= p_0 && y_higher_is_better){ #sometimes continuous data aint continuous and you can have a "measure 0" event of equality here - at equality should pick group 1 or 2 with equal prob (not done)
+				p_best = p_1
+			} else if (p_1 < p_0 && y_higher_is_better){
+				p_best = p_0			
+			} else if (p_1 <= p_0 && !y_higher_is_better){
+				p_best = p_1
+			} else {
+				p_best = p_0
+			}
+			
+			if (incidence_metric == "risk_ratio"){
+				return_obj$q_adversarial = p_rec / p_non_rec
+				return_obj$q_average = p_rec / p_all
+				return_obj$q_best = p_rec / p_best
+			} else if (incidence_metric == "odds_ratio"){
+				p_rec_odds = (p_rec / (1 - p_rec))
+				return_obj$q_adversarial = p_rec_odds / (p_non_rec / (1 - p_non_rec))
+				return_obj$q_average = p_rec_odds / (p_all / (1 - p_all))
+				return_obj$q_best = p_rec_odds / (p_best / (1 - p_best))
+			}
+		} else if (regression_type == "survival"){ #this set should be collectively exhaustive
 			c_all = results$censored
 			
 			#first do adversarial
@@ -116,28 +166,8 @@ create_PTE_results_object = function(results, regression_type, y_higher_is_bette
 #			plot(mod, col = c("blue", "red"))			
 			return_obj$q_best = median_diff
 			
-		} else {
-			return_obj$pred_differences_avg = mean(abs(results[, 1] - results[, 2]), na.rm = TRUE)
-			return_obj$pred_differences_sd = sd(abs(results[, 1] - results[, 2]), na.rm = TRUE)
-			return_obj$avg_optimals = mean(c(Y00, Y11), na.rm = TRUE)
-			return_obj$avg_non_optimals = mean(c(Y01, Y10), na.rm = TRUE)
-			return_obj$avg_all = mean(c(Y00, Y01, Y10, Y11), na.rm = TRUE)
-			avg_ys_tx_1 = mean(c(Y00, Y01), na.rm = TRUE)
-			avg_ys_tx_2 = mean(c(Y10, Y11), na.rm = TRUE)
-			if (avg_ys_tx_1 >= avg_ys_tx_2 && y_higher_is_better){ #sometimes continuous data aint continuous and you can have a "measure 0" event of equality here - at equality should pick group 1 or 2 with equal prob (not done)
-				return_obj$avg_best = avg_ys_tx_1		
-			} else if (avg_ys_tx_1 >= avg_ys_tx_2 && !y_higher_is_better){
-				return_obj$avg_best = avg_ys_tx_2
-			} else if (avg_ys_tx_1 < avg_ys_tx_2 && y_higher_is_better){
-				return_obj$avg_best = avg_ys_tx_2			
-			} else if (avg_ys_tx_1 < avg_ys_tx_2 && !y_higher_is_better){
-				return_obj$avg_best = avg_ys_tx_1
-			}
-			return_obj$q_adversarial = return_obj$avg_optimals - return_obj$avg_non_optimals
-			return_obj$q_average = return_obj$avg_optimals - return_obj$avg_all
-			return_obj$q_best = return_obj$avg_optimals - return_obj$avg_best		
 		}
-	} else {
+	} else { ###user custom function output
 		all_diffs = difference_function(results, indices_1_1, indices_0_0, indices_0_1, indices_1_0)
 		return_obj$q_adversarial = all_diffs[1]
 		return_obj$q_average = all_diffs[2]

@@ -5,13 +5,13 @@
 \title{Bootstrap inference for a prespecified personalization / recommendation model}
 \usage{
 PTE_bootstrap_inference(X, y, regression_type = "continuous",
-  personalized_model_build_function = NULL, censored = NULL,
-  predict_function = function(mod, Xyleftout) {     predict(mod, Xyleftout) },
-  difference_function = NULL, cleanup_mod_function = NULL,
-  y_higher_is_better = TRUE, verbose = FALSE, full_verbose = FALSE,
-  H_0_mu_equals = 0, pct_leave_out = 0.1, m_prop = 1, B = 3000,
-  alpha = 0.05, run_bca_bootstrap = FALSE, plot = TRUE,
-  num_cores = NULL)
+  incidence_metric = "odds_ratio", personalized_model_build_function = NULL,
+  censored = NULL, predict_function = function(mod, Xyleftout) {    
+  predict(mod, Xyleftout) }, difference_function = NULL,
+  cleanup_mod_function = NULL, y_higher_is_better = TRUE, verbose = FALSE,
+  full_verbose = FALSE, H_0_mu_equals = NULL, pct_leave_out = 0.1,
+  m_prop = 1, B = 3000, alpha = 0.05, run_bca_bootstrap = FALSE,
+  plot = TRUE, num_cores = NULL)
 }
 \arguments{
 \item{X}{A \eqn{n \times p}{n x p} dataframe of covariates where one column is labeled "treatment" and it
@@ -23,6 +23,11 @@ is a binary vector of treatment allocations in the study.}
 a real number with no missing data, the default), "incidence" (the reponse \code{y} is
 either 0 or 1) and "survival". If the type is "survival", the user must also supply additional data via the 
 parameter \code{censored}.}
+
+\item{incidence_metric}{Ignored unless the \code{regression_type} is "incidence" and \code{difference_function} is set to \code{NULL} (in 
+the latter case, you have specified a more custom metric). Then, this parameter allows the user to select which 
+of the three standard metrics to use for comparison: "probability_difference", "risk_ratio", "odds_ratio" where 
+the default is "odds_ratio".}
 
 \item{personalized_model_build_function}{An R function that will be evaluated to construct the personalized medicine / recommendation 
 model. In the formula for the model, the response is "y", the treatment vector is 
@@ -84,8 +89,10 @@ in a weight-loss trial). Default is \code{TRUE}.}
 
 \item{full_verbose}{Prints out full information for each cross validation model for each bootstrap sample. This only works on some platforms.}
 
-\item{H_0_mu_equals}{The \eqn{\mu_{I_0}}{mu_I_0} value in \eqn{H_0}{H_0}. Default is 0 which answers the question: does my allocation procedure do better than a naive
-allocation procedure.}
+\item{H_0_mu_equals}{The \eqn{\mu_{I_0}}{mu_I_0} value in \eqn{H_0}{H_0}. Default is \code{NULL} which specifies 0 for regression types continuous,
+survival and incidence (with incidence metric "probability_difference") or 1 if the regression type is incidence and the incidence
+metric is "risk_ratio" or "odds_ratio". These defaults essentially answer the question: does my allocation procedure do better 
+than the business-as-usual / naive allocation procedure?}
 
 \item{pct_leave_out}{In the cross-validation, the proportion of the original dataset left out to estimate out-of-sample metrics. The default is 0.1
 which corresponds to 10-fold cross validation.}
