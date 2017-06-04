@@ -156,16 +156,20 @@ PTE_bootstrap_inference = function(X, y,
 	if (!is.null(censored) && length(censored) != n){
 		stop("The binary \"censored\" vector must be the same length as the number of observations.")
 	}
+	
+	if (is.null(censored)){
+		censored = rep(NA, n)
+	}
 		
 	#create default for model building function - always first order model with interactions
 	if (is.null(personalized_model_build_function)){
 		personalized_model_build_function = switch(regression_type,
 			continuous = function(Xytrain){ #defalt is OLS regression
-				lm(y ~ . + treatment * ., 
+				lm(y ~ . * treatment, 
 					data = Xytrain)
 			},
 			incidence = function(Xytrain){ #default is logistic regression
-				glm(y ~ . + treatment * ., 
+				glm(y ~ . * treatment, 
 					data = Xytrain, 
 					family = "binomial")
 			},
@@ -175,10 +179,6 @@ PTE_bootstrap_inference = function(X, y,
 					dist = "weibull")
 			}
 		)
-	}
-	
-	if (is.null(censored)){
-		censored = rep(NA, n)
 	}
 
 	#create master dataframe for convenience
@@ -456,9 +456,11 @@ PTE_bootstrap_inference = function(X, y,
 		} else if (incidence_metric == "odds_ratio"){
 			xlab = "I (avg. odds ratio)"
 		}
+		#display params
 		min_q = min(q_scores$average, q_scores$best)
 		max_q = max(q_scores$average, q_scores$best)
 		par(mfrow = c(2, 1))
+		#first plot
 		hist(q_scores$average, br = B / 3, xlab = xlab, xlim = c(min_q, max_q), main = "Average I's")
 		abline(v = est_q_average, col = "forestgreen", lwd = 3)
 		abline(v = ci_q_average[1], col = "firebrick3", lwd = 1)
@@ -467,6 +469,8 @@ PTE_bootstrap_inference = function(X, y,
 			abline(v = bca_ci_q_average[1], col = "dodgerblue3", lwd = 1)
 			abline(v = bca_ci_q_average[2], col = "dodgerblue3", lwd = 1)
 		}
+		abline(v = H_0_mu_equals, col = "gray")
+		#second plot
 		hist(q_scores$best, br = B / 3, xlab = xlab, xlim = c(min_q, max_q), main = "Best I's")
 		abline(v = est_q_best, col = "forestgreen", lwd = 3)
 		abline(v = ci_q_best[1], col = "firebrick3", lwd = 1)
@@ -475,6 +479,7 @@ PTE_bootstrap_inference = function(X, y,
 			abline(v = bca_ci_q_best[1], col = "dodgerblue3", lwd = 1)
 			abline(v = bca_ci_q_best[2], col = "dodgerblue3", lwd = 1)
 		}
+		abline(v = H_0_mu_equals, col = "gray")
 	}
 	
 	#print a warning message if need be
@@ -482,22 +487,33 @@ PTE_bootstrap_inference = function(X, y,
 		warning("This inference may be suspect since ", num_bad, " bootstrap samples were invalid (", round(num_bad  / B * 100, 2), "%).", sep = "")
 	}
 	
+	
+	#return the final model too
+	if (regression_type != "survival"){
+		Xy$censored = NULL
+	}
+	personalization_model = personalized_model_build_function(Xy)
+	
 	return_obj = list()
 	return_obj$Xy = Xy
+	return_obj$regression_type = regression_type
+	return_obj$incidence_metric = incidence_metric
 	return_obj$personalized_model_build_function = personalized_model_build_function
 	return_obj$predict_function = predict_function
 	return_obj$y_higher_is_better = y_higher_is_better
 	return_obj$difference_function = difference_function
+	return_obj$cleanup_mod_function = cleanup_mod_function
+	return_obj$alpha = alpha
+	return_obj$H_0_mu_equals = H_0_mu_equals
+	return_obj$personalization_model = personalization_model
+	return_obj$run_bca_bootstrap = run_bca_bootstrap
 	return_obj$run_results = run_results
 	return_obj$num_bad = num_bad
-    return_obj$observed_q_adversarial = observed_q_scores$adversarial
-    return_obj$observed_q_average = observed_q_scores$average
-    return_obj$observed_q_best = observed_q_scores$best
+    return_obj$observed_q_scores = observed_q_scores
 	return_obj$q_scores = q_scores
 	return_obj$p_val_adversarial = p_val_adversarial
 	return_obj$p_val_average = p_val_average
 	return_obj$p_val_best = p_val_best
-	return_obj$alpha = alpha
 	return_obj$est_q_adversarial = est_q_adversarial
 	return_obj$est_q_average = est_q_average
 	return_obj$est_q_best = est_q_best
@@ -505,6 +521,7 @@ PTE_bootstrap_inference = function(X, y,
 	return_obj$ci_q_average = ci_q_average
 	return_obj$ci_q_best = ci_q_best
 	if (run_bca_bootstrap){
+		return_obj$bca_q_scores = bca_q_scores
 	    return_obj$bca_ci_q_adversarial = bca_ci_q_adversarial
 	    return_obj$bca_ci_q_average = bca_ci_q_average
 	    return_obj$bca_ci_q_best = bca_ci_q_best

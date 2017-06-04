@@ -5,7 +5,7 @@ Version: 1.5
 Date: 2017-6-15
 Author: Adam Kapelner, Alina Levine & Justin Bleich
 Maintainer: Adam Kapelner <kapelner@qc.cuny.edu>
-Description: A tool to draw inference in personalized medicine regimes
+Description: A flexible tool that provides inference for personalized medicine model advantages
 License: GPL-3
 Depends: R (>= 3.0), doParallel, survival
 Imports: graphics, grDevices, stats

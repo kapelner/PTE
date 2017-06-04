@@ -4,7 +4,7 @@
 \alias{print.PTE_bootstrap_results}
 \title{Prints a summary of the model to the console}
 \usage{
-\method{summary}{PTE_bootstrap_results}(x, ...)
+\method{print}{PTE_bootstrap_results}(x, ...)
 }
 \arguments{
 \item{x}{A \code{PTE_bootstrap_results} model object built via

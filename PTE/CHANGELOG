@@ -1,7 +1,9 @@
 version 1.5
 
-* Support for survival regression
+* Support for survival endpoints 
+* Support for incidence endpoints: odds ratio, risk ratio and probability difference
 * Better arguments / defaults for the main function "PTE_bootstrap_inference"
+* Customization for non-standard metrics for all 
 * Speed improvements
 * Better documentation
 
