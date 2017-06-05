@@ -291,9 +291,9 @@ PTE_bootstrap_inference = function(X, y,
 		p_val_best = sum(q_scores$best < H_0_mu_equals) / (B + 1)
 	} else {
 		#we're looking for a q score LESS than H_0_mu_equals so the pval will be the proportion above
-		p_val_adversarial = sum(q_scores[["adversarial"]] > H_0_mu_equals) / (B + 1)
-		p_val_average = sum(q_scores[["average"]] > H_0_mu_equals) / (B + 1)
-		p_val_best = sum(q_scores[["best"]] > H_0_mu_equals) / (B + 1)
+		p_val_adversarial = sum(q_scores$adversarial > H_0_mu_equals) / (B + 1)
+		p_val_average = sum(q_scores$average > H_0_mu_equals) / (B + 1)
+		p_val_best = sum(q_scores$best > H_0_mu_equals) / (B + 1)
 	}
 	
 	est_q_adversarial = mean(q_scores$adversarial)

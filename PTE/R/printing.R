@@ -50,8 +50,8 @@ print.PTE_bootstrap_results = function(x, ...){
 					round(x$bca_ci_q_adversarial[1], 3), 
 					", ",
 					round(x$bca_ci_q_adversarial[2], 3), 
-					"],", 
-					""), sep = ""),  
+					"],", sep = ""), 
+				""),  
 			sep = "")
 	cat("\n    I_random observed_est = ", 
 			round(x$observed_q_scores$average, 3),
@@ -108,7 +108,6 @@ print.PTE_bootstrap_results = function(x, ...){
 #'	mu_x = 0
 #'	sigsq_x = 1
 #'	sigsq_e = 1
-#'	num_boot = 20 #for speed only
 #'	n = 50 #for speed only
 #'	
 #'	x = sort(rnorm(n, mu_x, sigsq_x))
@@ -119,12 +118,8 @@ print.PTE_bootstrap_results = function(x, ...){
 #'	
 #'	X = data.frame(treatment, x)
 #'	
-#'	res = bootstrap_inference(X, y,
-#'			"lm(y ~ . + treatment * ., data = Xyleft)",
-#'			num_cores = 1,
-#'			B = num_boot, 
-#'			plot = FALSE)
-#'	print(res)
+#'	res = bootstrap_inference(X, y, B = 100) #num bootstraps low for speed in this example
+#'	res #invokes the summary / print method by default
 #' 
 #' @method summary PTE_bootstrap_results
 #' 

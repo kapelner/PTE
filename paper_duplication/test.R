@@ -42,8 +42,11 @@ X$site = NULL
 y = ifelse(y > 15, 0, 1) #force incidence here and y=1 is better (not depressed)
 
 library(PTE)
-pte_results = PTE_bootstrap_inference(X, y, regression_type = "incidence", B = 200)
-pte_results = PTE_bootstrap_inference(X, y, regression_type = "incidence", incidence_metric = "risk_ratio", B = 200)
+pte_results = PTE_bootstrap_inference(X, y, regression_type = "incidence", B = 400)
+pte_results
+pte_results = PTE_bootstrap_inference(X, y, regression_type = "incidence", B = 200, 
+                                      incidence_metric = "risk_ratio")
+pte_results
 pte_results = PTE_bootstrap_inference(X, y, regression_type = "incidence", incidence_metric = "probability_difference", B = 200)
 pte_results
 

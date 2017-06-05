@@ -63,10 +63,10 @@ create_PTE_results_object = function(results, regression_type, y_higher_is_bette
 			return_obj$pred_differences_sd = sd(abs(results[, 1] - results[, 2]), na.rm = TRUE)
 			return_obj$avg_rec = mean(c(Y00, Y11), na.rm = TRUE)
 			return_obj$avg_non_rec = mean(c(Y01, Y10), na.rm = TRUE)
-			return_obj$avg_all = mean(c(Y00, Y01, Y10, Y11), na.rm = TRUE)
+			return_obj$avg_all = mean(y_all, na.rm = TRUE)
 			avg_ys_tx_1 = mean(c(Y00, Y01), na.rm = TRUE)
 			avg_ys_tx_2 = mean(c(Y10, Y11), na.rm = TRUE)
-			if (avg_ys_tx_1 >= avg_ys_tx_2 && y_higher_is_better){ #sometimes continuous data aint continuous and you can have a "measure 0" event of equality here - at equality should pick group 1 or 2 with equal prob (not done)
+			if (avg_ys_tx_1 >= avg_ys_tx_2 && y_higher_is_better){
 				return_obj$avg_best = avg_ys_tx_1		
 			} else if (avg_ys_tx_1 >= avg_ys_tx_2 && !y_higher_is_better){
 				return_obj$avg_best = avg_ys_tx_2
@@ -93,14 +93,14 @@ create_PTE_results_object = function(results, regression_type, y_higher_is_bette
 			p_1 = mean(c(Y10, Y11), na.rm = TRUE)
 			p_0 = mean(c(Y00, Y01), na.rm = TRUE)
 			
-			if (p_1 >= p_0 && y_higher_is_better){ #sometimes continuous data aint continuous and you can have a "measure 0" event of equality here - at equality should pick group 1 or 2 with equal prob (not done)
+			if (p_1 >= p_0 && y_higher_is_better){
 				p_best = p_1
 			} else if (p_1 < p_0 && y_higher_is_better){
 				p_best = p_0			
 			} else if (p_1 <= p_0 && !y_higher_is_better){
-				p_best = p_1
-			} else {
 				p_best = p_0
+			} else {
+				p_best = p_1
 			}
 			
 			if (incidence_metric == "risk_ratio"){
@@ -150,7 +150,11 @@ create_PTE_results_object = function(results, regression_type, y_higher_is_bette
 			median_estimates = summary(mod)$table[, 'median']
 			median_diff = median_estimates[2] - median_estimates[1]
 			#if median_diff is greater than 0, tx1 is the better treatment
-			if (median_diff >= 0){
+			if (median_diff == 0){ #measure 0 event in theory... but in practice - who knows?
+				random_bernoulli = runif(1) < 0.5
+				y_best = if (random_bernoulli){y_0} else {y_1}
+				c_best = if (random_bernoulli){c_0} else {c_1}
+			} else if (median_diff > 0){
 				y_best = y_1
 				c_best = c_1
 			} else {
