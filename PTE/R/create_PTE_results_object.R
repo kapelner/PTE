@@ -146,7 +146,6 @@ create_PTE_results_object = function(results, regression_type, y_higher_is_bette
 			c_0 = c(c_all[indices_0_1], c_all[indices_0_0])
 			rec_indicator = c(rep(1, length(y_1)), rep(0, length(y_0))) #call tx 1 the 1 level
 			mod = survfit(Surv(c(y_1, y_0), c(c_1, c_0)) ~ rec_indicator)
-#			plot(mod, col = c("blue", "red"))
 			median_estimates = summary(mod)$table[, 'median']
 			median_diff = median_estimates[2] - median_estimates[1]
 			#if median_diff is greater than 0, tx1 is the better treatment
@@ -154,21 +153,26 @@ create_PTE_results_object = function(results, regression_type, y_higher_is_bette
 				random_bernoulli = runif(1) < 0.5
 				y_best = if (random_bernoulli){y_0} else {y_1}
 				c_best = if (random_bernoulli){c_0} else {c_1}
-			} else if (median_diff > 0){
+			} else if (median_diff > 0 && y_higher_is_better){
 				y_best = y_1
 				c_best = c_1
-			} else {
+			} else if (median_diff < 0 && y_higher_is_better){
 				y_best = y_0
 				c_best = c_0	
+			} else if (median_diff > 0 && !y_higher_is_better){
+				y_best = y_0
+				c_best = c_0			
+			} else {
+				y_best = y_1
+				c_best = c_1				
 			}
-			
-			rec_indicator = c(rep(1, length(y_rec)), rep(0, length(y_best)))
-			
+			rec_indicator = c(rep(1, length(y_rec)), rep(0, length(y_best)))			
 			mod = survfit(Surv(c(y_rec, y_best), c(c_rec, c_best)) ~ rec_indicator)
 			median_estimates = summary(mod)$table[, 'median']
 			median_diff = median_estimates[2] - median_estimates[1]
 #			plot(mod, col = c("blue", "red"))			
 			return_obj$q_best = median_diff
+			
 			
 		}
 	} else { ###user custom function output

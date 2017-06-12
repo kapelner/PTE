@@ -12,7 +12,26 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' @param personalized_model_build_function 	An R function that will be evaluated to construct the personalized medicine / recommendation 
 #' 												model. In the formula for the model, the response is "y", the treatment vector is 
 #' 												"treatment" and the data is "Xytrain". This function must return some type of object
-#' 												that can be used for prediction later via \code{predict_function}.
+#' 												that can be used for prediction later via \code{predict_function}. Here are the defaults
+#' 												for each \code{regression_type}. They are linear models with first order interactions:
+#' 
+#' 											 		personalized_model_build_function = switch(regression_type,
+#' 														continuous = function(Xytrain){ #defalt is OLS regression
+#' 															lm(y ~ . * treatment, 
+#' 																data = Xytrain)
+#' 														},
+#' 														incidence = function(Xytrain){ #default is logistic regression
+#' 															glm(y ~ . * treatment, 
+#' 																data = Xytrain, 
+#' 																family = "binomial")
+#' 														},
+#' 														survival = function(Xytrain){ #default is Weibull regression
+#' 															survreg(Surv(Xytrain$y, Xytrain$censored) ~ (. - censored) * treatment, 
+#' 																data = Xytrain, 
+#' 																dist = "weibull")
+#' 														}
+#' 													)
+#' 
 #' @param regression_type			A string indicating the regression problem. Legal values are "continous" (the response \code{y} is
 #' 									a real number with no missing data, the default), "incidence" (the reponse \code{y} is
 #' 									either 0 or 1) and "survival". If the type is "survival", the user must also supply additional data via the 
@@ -446,15 +465,15 @@ PTE_bootstrap_inference = function(X, y,
 	
 	if (plot){
 		if (regression_type == "continuous"){
-			xlab = "I (avg. response difference)"
+			xlab = "I (average response difference)"
 		} else if (regression_type == "survival"){
-			xlab = "I (avg. survival difference)"
+			xlab = "I (average median survival difference)"
 		} else if (incidence_metric == "probability_difference"){
-			xlab = "I (avg. probability difference)"
+			xlab = "I (average probability difference)"
 		} else if (incidence_metric == "risk_ratio"){
-			xlab = "I (avg. risk ratio)"
+			xlab = "I (average risk ratio)"
 		} else if (incidence_metric == "odds_ratio"){
-			xlab = "I (avg. odds ratio)"
+			xlab = "I (average odds ratio)"
 		}
 		#display params
 		min_q = min(q_scores$average, q_scores$best)
