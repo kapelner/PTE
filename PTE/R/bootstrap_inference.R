@@ -112,6 +112,46 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' 									and the bootstrap runs, including hypothesis testing and confidence intervals.
 #' 
 #' @author Adam Kapelner
+#' 
+#' @examples
+#' \dontrun{
+#' 	library(PTE)
+#' 	B = 1000 #lower this for quicker demos
+#' 
+#' 	##response: continuous
+#' 	data(continuous_example)
+#' 	X = continuous_example$X
+#'  y = continuous_example$y
+#' 	pte_results = PTE_bootstrap_inference(X, y, regression_type = "continuous", B = B)
+#' 	pte_results
+#' 
+#' 	##response: incidence
+#' 	data(continuous_example)
+#' 	X = continuous_example$X
+#'  y = continuous_example$y
+#' 	y = ifelse(y > quantile(y, 0.75), 1, 0) #force incidence and pretend y came to you this way
+#'	#there are three ways to assess incidence effects below: 
+#' 	#	odds ratio, risk ratio and probability difference 
+#' 	pte_results = PTE_bootstrap_inference(X, y, regression_type = "incidence", B = B)
+#' 	pte_results
+#' 	pte_results = PTE_bootstrap_inference(X, y, regression_type = "incidence", B = B, 
+#'                                       incidence_metric = "risk_ratio")
+#' 	pte_results
+#' 	pte_results = PTE_bootstrap_inference(X, y, regression_type = "incidence", B = B, 
+#' 	                                      incidence_metric = "probability_difference")
+#' 	pte_results
+#' 
+#' 	##response: survival
+#' 	data(survival_example)
+#' 	X = survival_example$X
+#' 	y = survival_example$y
+#'  censored = survival_example$censored
+#' 	pte_results = PTE_bootstrap_inference(X, y, censored = censored, 
+#'     	regression_type = "survival", 
+#'         B = 200, 
+#'         y_higher_is_better = FALSE)
+#' 	pte_results
+#' }
 #' @export
 PTE_bootstrap_inference = function(X, y,  
 		regression_type = "continuous",
@@ -254,7 +294,7 @@ PTE_bootstrap_inference = function(X, y,
 	registerDoParallel(cluster)
   
 	boot_list = foreach(b = 1 : B) %dopar% {
-		library(survival)
+		
     	iter_list = list()
     	iter_list$q_scores = list()
 		raw_results = create_raw_results_matrix(n)

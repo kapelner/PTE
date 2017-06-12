@@ -15,33 +15,7 @@ running the \code{PTE_bootstrap_inference} function.}
 \description{
 Prints a summary of the model to the console
 }
-\examples{
-beta0 = 1
-beta1 = -1
-gamma0 = 0
-gamma1 = sqrt(2 * pi)
-mu_x = 0
-sigsq_x = 1
-sigsq_e = 1
-num_boot = 20 #for speed only
-n = 50 #for speed only
-
-x = sort(rnorm(n, mu_x, sigsq_x))
-noise = rnorm(n, 0, sigsq_e)
-
-treatment = sample(c(rep(1, n / 2), rep(0, n / 2)))
-y = beta0 + beta1 * x + treatment * (gamma0 + gamma1 * x) + noise
-
-X = data.frame(treatment, x)
-
-res = bootstrap_inference(X, y,
-		"lm(y ~ . + treatment * ., data = Xyleft)",
-		num_cores = 1,
-		B = num_boot, 
-		plot = FALSE)
-print(res)
-
-}
 \author{
 Adam Kapelner
 }
+

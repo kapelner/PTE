@@ -2,11 +2,19 @@ Package: PTE
 Type: Package
 Title: Personalized Treatment Evaluator
 Version: 1.5
-Date: 2017-6-15
+Date: 2017-6-12
 Author: Adam Kapelner, Alina Levine & Justin Bleich
 Maintainer: Adam Kapelner <kapelner@qc.cuny.edu>
-Description: A flexible tool that provides inference for personalized medicine model advantages
+Description: We provide inference for personalized medicine models. Namely, we answer the questions: (1) how much better does a purported personalized recommendation engine for treatments do over a business-as-usal approach and (2) is that difference statistically significant?
 License: GPL-3
-Depends: R (>= 3.0), doParallel, survival
-Imports: graphics, grDevices, stats
-RoxygenNote: 6.0.1
+Depends:
+    R (>= 3.0)
+Imports:
+	foreach,
+	parallel,
+    doParallel,
+    graphics,
+    grDevices,
+    stats,
+    survival
+RoxygenNote: 5.0.1

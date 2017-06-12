@@ -30,9 +30,27 @@ of the three standard metrics to use for comparison: "probability_difference", "
 the default is "odds_ratio".}
 
 \item{personalized_model_build_function}{An R function that will be evaluated to construct the personalized medicine / recommendation 
-model. In the formula for the model, the response is "y", the treatment vector is 
-"treatment" and the data is "Xytrain". This function must return some type of object
-that can be used for prediction later via \code{predict_function}.}
+                                                model. In the formula for the model, the response is "y", the treatment vector is 
+                                                "treatment" and the data is "Xytrain". This function must return some type of object
+                                                that can be used for prediction later via \code{predict_function}. Here are the defaults
+                                                for each \code{regression_type}. They are linear models with first order interactions:
+
+                                                     personalized_model_build_function = switch(regression_type,
+                                                        continuous = function(Xytrain){ #defalt is OLS regression
+                                                            lm(y ~ . * treatment, 
+                                                                data = Xytrain)
+                                                        },
+                                                        incidence = function(Xytrain){ #default is logistic regression
+                                                            glm(y ~ . * treatment, 
+                                                                data = Xytrain, 
+                                                                family = "binomial")
+                                                        },
+                                                        survival = function(Xytrain){ #default is Weibull regression
+                                                            survreg(Surv(Xytrain$y, Xytrain$censored) ~ (. - censored) * treatment, 
+                                                                data = Xytrain, 
+                                                                dist = "weibull")
+                                                        }
+                                                    )}
 
 \item{censored}{Only required if the \code{regression_type} is "survival". In this case, this vector is of length \eqn{n} and is binary 
    where 0 indicates censored and 1 indicates uncensored. In a clinical trial, someone who is still alive 
@@ -123,6 +141,47 @@ Runs B bootstrap samples using a prespecified model then computes the two I esti
 p values of the two I estimates are computed for a given \eqn{H_0: \mu_{I_0} = \mu_0}{H_0: mu_I_0 = mu_0} and 
 confidence intervals are provided.
 }
+\examples{
+\dontrun{
+	library(PTE)
+	B = 1000 #lower this for quicker demos
+
+	##response: continuous
+	data(continuous_example)
+	X = continuous_example$X
+ y = continuous_example$y
+	pte_results = PTE_bootstrap_inference(X, y, regression_type = "continuous", B = B)
+	pte_results
+
+	##response: incidence
+	data(continuous_example)
+	X = continuous_example$X
+ y = continuous_example$y
+	y = ifelse(y > quantile(y, 0.75), 1, 0) #force incidence and pretend y came to you this way
+#there are three ways to assess incidence effects below: 
+	#	odds ratio, risk ratio and probability difference 
+	pte_results = PTE_bootstrap_inference(X, y, regression_type = "incidence", B = B)
+	pte_results
+	pte_results = PTE_bootstrap_inference(X, y, regression_type = "incidence", B = B, 
+                                      incidence_metric = "risk_ratio")
+	pte_results
+	pte_results = PTE_bootstrap_inference(X, y, regression_type = "incidence", B = B, 
+	                                      incidence_metric = "probability_difference")
+	pte_results
+
+	##response: survival
+	data(survival_example)
+	X = survival_example$X
+	y = survival_example$y
+ censored = survival_example$censored
+	pte_results = PTE_bootstrap_inference(X, y, censored = censored, 
+    	regression_type = "survival", 
+        B = 200, 
+        y_higher_is_better = FALSE)
+	pte_results
+}
+}
 \author{
 Adam Kapelner
 }
+
