@@ -18,4 +18,3 @@ Prints a summary of the model to the console
 \author{
 Adam Kapelner
 }
-

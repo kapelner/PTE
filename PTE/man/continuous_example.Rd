@@ -14,4 +14,3 @@ subjects.
 \author{
 My Name \email{kapelner@qc.cuny.edu}
 }
-

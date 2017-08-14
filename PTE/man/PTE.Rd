@@ -8,13 +8,12 @@
 \description{
 Personalized Medicine...
 }
-\author{
-Adam Kapelner \email{kapelner@qc.cuny.edu}, Alina Levine and Justin Bleich
-}
 \references{
 Kapelner, A, Bleich, J, Cohen, ZD, DeRubeis, RJ and Berk, R (2014) Inference for Treatment Regime Models in Personalized Medicine, arXiv
+}
+\author{
+Adam Kapelner \email{kapelner@qc.cuny.edu}, Alina Levine and Justin Bleich
 }
 \keyword{Personalized}
 \keyword{bootstrap}
 \keyword{medicine,}
-

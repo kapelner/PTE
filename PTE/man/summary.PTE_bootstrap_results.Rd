@@ -4,7 +4,7 @@
 \alias{summary.PTE_bootstrap_results}
 \title{Prints a summary of the model to the console}
 \usage{
-\method{summary}{PTE_bootstrap_results}(object, ...)
+summary.PTE_bootstrap_results(object, ...)
 }
 \arguments{
 \item{object}{A \code{PTE_bootstrap_results} model object built via
@@ -18,4 +18,3 @@ Prints a summary of the model to the console
 \author{
 Adam Kapelner
 }
-

@@ -16,4 +16,3 @@ the moment it was censored (and c_16 = 0 means it was uncensored and y_16 is the
 \author{
 My Name \email{kapelner@qc.cuny.edu}
 }
-
