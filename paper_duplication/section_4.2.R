@@ -1,4 +1,5 @@
 library(PTE)
+options(mc.cores = 4)
 set.seed(1984)
 graphics.off()
 
@@ -162,8 +163,6 @@ ntrains = c(100, 200, 500, 1000)
 num_boot = 3000
 
 
-library(PTE)
-
 graphics.off()
 par(mfrow = c(length(ntrains), 2), mar = c(3, 0.5, 0.5, 0.5))
 
@@ -192,12 +191,8 @@ for (i_n in 1 : length(ntrains)){
 	
 	Xtrain = data.frame(treatment, xtrain)
 	
-	res = bootstrap_inference(Xtrain, ytrain,
-			"lm(y ~ . + treatment * ., data = Xyleft)",
-			num_cores = 4,
-			B = num_boot, 
-			plot = FALSE)
-	print(n)
+	res = PTE_bootstrap_inference(Xtrain, ytrain, B = num_boot)
+	print(i_n)
 	print(res)
 	
 	min_q = -0.2#min(res$q_scores$average)
@@ -216,11 +211,3 @@ for (i_n in 1 : length(ntrains)){
 	abline(v = res$ci_q_best[2], col = "black", lwd = 1)
 	abline(v = muI0star, col = "black", lwd = 1, lty = 2)
 }
-
-
-
-
-
-
-
-

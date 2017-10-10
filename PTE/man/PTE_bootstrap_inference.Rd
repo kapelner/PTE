@@ -11,7 +11,7 @@ PTE_bootstrap_inference(X, y, regression_type = "continuous",
   cleanup_mod_function = NULL, y_higher_is_better = TRUE, verbose = FALSE,
   full_verbose = FALSE, H_0_mu_equals = NULL, pct_leave_out = 0.1,
   m_prop = 1, B = 3000, alpha = 0.05, run_bca_bootstrap = FALSE,
-  display_adversarial_score = FALSE, plot = TRUE, num_cores = NULL)
+  display_adversarial_score = FALSE, num_cores = NULL)
 }
 \arguments{
 \item{X}{A \eqn{n \times p}{n x p} dataframe of covariates where one column is labeled "treatment" and it
@@ -128,8 +128,6 @@ The default is 3000.}
 
 \item{display_adversarial_score}{The adversarial score records the personalization metric versus the deliberate opposite of the personalization. This does not correspond
 to any practical situation but it is useful for debugging. Default is \code{FALSE}.}
-
-\item{plot}{Illustrates the estimate, the bootstrap samples and the confidence intervals on a histogram plot. Default to TRUE.}
 
 \item{num_cores}{The number of cores to use in parallel to run the bootstrap samples more rapidly. 
 Defaults to \code{NULL} which automatically sets it to one if there is one available processor or
