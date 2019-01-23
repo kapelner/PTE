@@ -78,6 +78,8 @@ print.PTE_bootstrap_results = function(x, ...){
 #' @param object 					A \code{PTE_bootstrap_results} model object built via
 #' 									running the \code{PTE_bootstrap_inference} function.
 #' @param ... 						Other methods passed to summary
+#' @method summary PTE_bootstrap_results
+#' 
 #' @author Adam Kapelner
 #' @export
 summary.PTE_bootstrap_results = function(object, ...){
