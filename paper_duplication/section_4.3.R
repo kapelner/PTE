@@ -1,15 +1,14 @@
 set.seed(1984)
 
 library(PTE)
+options(mc.cores = 4)
 data(cpt1) #this data is not publically available
 
 
 s = Sys.time()
 #Figure 4 (copy the following four lines of code)
-res = bootstrap_inference(X, y,
-		"lm(y ~ intake_HRSD + iq_ship + age + chronic + treatment * (married + unemployed + life_stressors + pdstatus + drugs012), data = Xyleft)",
-		y_higher_is_better = FALSE, num_cores = 4,
-		B = 3000)
+#"lm(y ~ intake_HRSD + iq_ship + age + chronic + treatment * (married + unemployed + life_stressors + pdstatus + drugs012), data = Xyleft)",
+res = PTE_bootstrap_inference(X, y, y_higher_is_better = FALSE, B = 3000)
 print(Sys.time() - s)
 #Figure 5 (run the next line and copy the output save the BCa intervals)
 res

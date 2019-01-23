@@ -1,5 +1,5 @@
 library(PTE)
-
+options(mc.cores = 4)
 set.seed(1984)
 
 
@@ -30,13 +30,7 @@ for (i_n in 1 : length(ns)){
 	
 	X = data.frame(treatment, x)
 	
-	res = bootstrap_inference(X, y,
-			"lm(y ~ . + treatment * ., data = Xyleft)",
-			num_cores = 4,
-			B = num_boot, 
-			plot = FALSE)
-#	print(n)
-#	print(res)
+	res = PTE_bootstrap_inference(X, y, B = num_boot)
 	
 	min_q = 0.25
 	max_q = 1.5

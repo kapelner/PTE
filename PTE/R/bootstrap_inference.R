@@ -105,7 +105,6 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' @param run_bca_bootstrap			Do the BCA bootstrap as well. This takes double the time. It defaults to \code{FALSE}.
 #' @param display_adversarial_score	The adversarial score records the personalization metric versus the deliberate opposite of the personalization. This does not correspond
 #' 									to any practical situation but it is useful for debugging. Default is \code{FALSE}.
-#' @param plot 						Illustrates the estimate, the bootstrap samples and the confidence intervals on a histogram plot. Default to TRUE.
 #' @param num_cores					The number of cores to use in parallel to run the bootstrap samples more rapidly. 
 #' 									Defaults to \code{NULL} which automatically sets it to one if there is one available processor or
 #' 									if there are multiple available processors, the number of available processors save one.   
@@ -172,7 +171,6 @@ PTE_bootstrap_inference = function(X, y,
 		alpha = 0.05,
 		run_bca_bootstrap = FALSE,
 		display_adversarial_score = FALSE,
-		plot = TRUE,
         num_cores = NULL
 	){
 	
@@ -205,7 +203,7 @@ PTE_bootstrap_inference = function(X, y,
 		stop("Your data frame must have a column \"\treatment\" which is an indicator vector of the allocation in the RCT.")
 	}
 	#ensure treatment is a factor variable with levels zero and one
-	if (class(X$treatment) != "numeric" && identical(names(table(X$treatment)), c("0", "1"))){
+	if (!(class(X$treatment) %in% c("numeric", "integer")) && identical(names(table(X$treatment)), c("0", "1"))){
 		stop("Your data frame must have a column \"\treatment\" which is a numeric variable with only two values: \"0\" and \"1\".")
 	}
 	
@@ -503,45 +501,6 @@ PTE_bootstrap_inference = function(X, y,
 			bca_ci_q_best = -bca_ci_q_best[2:1]
 		}
 	}
-
-	
-	if (plot){
-		if (regression_type == "continuous"){
-			xlab = "I (average response difference)"
-		} else if (regression_type == "survival"){
-			xlab = "I (average median survival difference)"
-		} else if (incidence_metric == "probability_difference"){
-			xlab = "I (average probability difference)"
-		} else if (incidence_metric == "risk_ratio"){
-			xlab = "I (average risk ratio)"
-		} else if (incidence_metric == "odds_ratio"){
-			xlab = "I (average odds ratio)"
-		}
-		#display params
-		min_q = min(q_scores$average, q_scores$best)
-		max_q = max(q_scores$average, q_scores$best)
-		par(mfrow = c(2, 1))
-		#first plot
-		hist(q_scores$average, br = B / 3, xlab = xlab, xlim = c(min_q, max_q), main = "Average I's")
-		abline(v = est_q_average, col = "forestgreen", lwd = 3)
-		abline(v = ci_q_average[1], col = "firebrick3", lwd = 1)
-		abline(v = ci_q_average[2], col = "firebrick3", lwd = 1)
-		if (run_bca_bootstrap){
-			abline(v = bca_ci_q_average[1], col = "dodgerblue3", lwd = 1)
-			abline(v = bca_ci_q_average[2], col = "dodgerblue3", lwd = 1)
-		}
-		abline(v = H_0_mu_equals, col = "gray")
-		#second plot
-		hist(q_scores$best, br = B / 3, xlab = xlab, xlim = c(min_q, max_q), main = "Best I's")
-		abline(v = est_q_best, col = "forestgreen", lwd = 3)
-		abline(v = ci_q_best[1], col = "firebrick3", lwd = 1)
-		abline(v = ci_q_best[2], col = "firebrick3", lwd = 1)
-		if (run_bca_bootstrap){
-			abline(v = bca_ci_q_best[1], col = "dodgerblue3", lwd = 1)
-			abline(v = bca_ci_q_best[2], col = "dodgerblue3", lwd = 1)
-		}
-		abline(v = H_0_mu_equals, col = "gray")
-	}
 	
 	#print a warning message if need be
 	if (num_bad  / B > THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE){
@@ -582,6 +541,7 @@ PTE_bootstrap_inference = function(X, y,
 	return_obj$ci_q_average = ci_q_average
 	return_obj$ci_q_best = ci_q_best
 	return_obj$display_adversarial_score = display_adversarial_score
+	return_obj$B = B
 	if (run_bca_bootstrap){
 		return_obj$bca_q_scores = bca_q_scores
 	    return_obj$bca_ci_q_adversarial = bca_ci_q_adversarial
