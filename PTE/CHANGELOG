@@ -1,6 +1,7 @@
-version 1.61
+version 1.7
 
 * Calculated and prints basic and studentized bootstrap confidence intervals by default
+* Fixed warnings
 
 version 1.6
 

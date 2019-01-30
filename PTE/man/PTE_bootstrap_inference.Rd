@@ -140,7 +140,8 @@ A results object of type "PTE_bootstrap_results" that contains much information 
 \description{
 Runs B bootstrap samples using a prespecified model then computes the two I estimates based on cross validation. 
 p values of the two I estimates are computed for a given \eqn{H_0: \mu_{I_0} = \mu_0}{H_0: mu_I_0 = mu_0} and 
-confidence intervals are provided.
+confidence intervals are provided using the basic, percentile methods by default and the BCa method as well 
+if desired.
 }
 \examples{
 \dontrun{

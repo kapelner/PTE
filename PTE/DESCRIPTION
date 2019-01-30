@@ -1,7 +1,7 @@
 Package: PTE
 Type: Package
 Title: Personalized Treatment Evaluator
-Version: 1.61
+Version: 1.7
 Date: 2019-01-24
 Author: Adam Kapelner, Alina Levine & Justin Bleich
 Maintainer: Adam Kapelner <kapelner@qc.cuny.edu>
