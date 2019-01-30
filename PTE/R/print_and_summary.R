@@ -11,7 +11,7 @@ print.PTE_bootstrap_results = function(x, ...){
 	if (x$display_adversarial_score){
 		cat("    I_adversarial observed est = ", 
 				round(x$observed_q_scores$adversarial, 3), 
-				",  p val = ",
+				",  pctile p-val = ",
 				round(x$p_val_adversarial, 3), 
 				", \n      ",			
 				round(100 * (1 - x$alpha), 1),
@@ -37,7 +37,7 @@ print.PTE_bootstrap_results = function(x, ...){
 	}
 	cat("    I_random observed_est = ", 
 			round(x$observed_q_scores$average, 3),
-			",  p val = ", 
+			",  pctile p-val = ", 
 			round(x$p_val_average, 3),
 			", \n      ",
 			round(100 * (1 - x$alpha), 1),
