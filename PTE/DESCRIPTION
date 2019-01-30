@@ -1,8 +1,8 @@
 Package: PTE
 Type: Package
 Title: Personalized Treatment Evaluator
-Version: 1.6
-Date: 2017-10-9
+Version: 1.61
+Date: 2019-01-24
 Author: Adam Kapelner, Alina Levine & Justin Bleich
 Maintainer: Adam Kapelner <kapelner@qc.cuny.edu>
 Description: We provide inference for personalized medicine models. Namely, we answer the questions: (1) how much better does a purported personalized recommendation engine for treatments do over a business-as-usual approach and (2) is that difference statistically significant?

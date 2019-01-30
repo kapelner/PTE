@@ -1,3 +1,7 @@
+version 1.61
+
+* Calculated and prints basic and studentized bootstrap confidence intervals by default
+
 version 1.6
 
 * Decomped plot parameter into a separate function for ease of use
@@ -9,7 +13,7 @@ version 1.5
 * Support for survival endpoints 
 * Support for incidence endpoints: odds ratio, risk ratio and probability difference
 * Better arguments / defaults for the main function "PTE_bootstrap_inference"
-* Customization for non-standard metrics for all 
+* Customization for non-standard metrics for all endpoints
 * Speed improvements
 * Better documentation
 

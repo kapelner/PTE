@@ -27,6 +27,8 @@ plot.PTE_bootstrap_results = function(x, ...){
 	#first plot
 	hist(x$q_scores$average, br = x$B / 3, xlab = xlab, xlim = c(min_q, max_q), main = "Average I's")
 	abline(v = x$est_q_average, col = "forestgreen", lwd = 3)
+	abline(v = x$basic_ci_q_average[1], col = "purple", lwd = 1)
+	abline(v = x$basic_ci_q_average[2], col = "purple", lwd = 1)
 	abline(v = x$ci_q_average[1], col = "firebrick3", lwd = 1)
 	abline(v = x$ci_q_average[2], col = "firebrick3", lwd = 1)
 	if (x$run_bca_bootstrap){
@@ -37,6 +39,8 @@ plot.PTE_bootstrap_results = function(x, ...){
 	#second plot
 	hist(x$q_scores$best, br = x$B / 3, xlab = xlab, xlim = c(min_q, max_q), main = "Best I's")
 	abline(v = x$est_q_best, col = "forestgreen", lwd = 3)
+	abline(v = x$basic_ci_q_best[1], col = "purple", lwd = 1)
+	abline(v = x$basic_ci_q_best[2], col = "purple", lwd = 1)
 	abline(v = x$ci_q_best[1], col = "firebrick3", lwd = 1)
 	abline(v = x$ci_q_best[2], col = "firebrick3", lwd = 1)
 	if (x$run_bca_bootstrap){
