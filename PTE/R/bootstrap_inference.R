@@ -204,8 +204,11 @@ PTE_bootstrap_inference = function(X, y,
 		stop("Your data frame must have a column \"\treatment\" which is an indicator vector of the allocation in the RCT.")
 	}
 	#ensure treatment is a factor variable with levels zero and one
-	if (!(class(X$treatment) %in% c("numeric", "integer")) && identical(names(table(X$treatment)), c("0", "1"))){
-		stop("Your data frame must have a column \"\treatment\" which is a numeric variable with only two values: \"0\" and \"1\".")
+	if (!(class(X$treatment) %in% c("numeric", "integer"))){
+		stop("Your data frame must have a column \"treatment\" which is a numeric variable.")
+	}
+	if (!(identical(names(table(X$treatment)), c("0", "1")))){
+		stop("Your data frame must have a column \"treatment\" which is a numeric variable with only two values: \"0\" and \"1\".\nRun \"names(table(X$treatment))\" to see the problem.")
 	}
 	
 	n = nrow(X)
@@ -223,6 +226,7 @@ PTE_bootstrap_inference = function(X, y,
 		
 	#create default for model building function - always first order model with interactions
 	if (is.null(personalized_model_build_function)){
+		personalized_model_build_function_default = TRUE
 		personalized_model_build_function = switch(regression_type,
 			continuous = function(Xytrain){ #defalt is OLS regression
 				lm(y ~ . * treatment, 
@@ -239,6 +243,8 @@ PTE_bootstrap_inference = function(X, y,
 					dist = "weibull")
 			}
 		)
+	} else {
+		personalized_model_build_function_default = FALSE
 	}
 
 	#create master dataframe for convenience
