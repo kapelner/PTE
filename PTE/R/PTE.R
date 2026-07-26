@@ -5,13 +5,15 @@
 #' @title 		Personalized Medicine Inference
 #' @author 		Adam Kapelner \email{kapelner@@qc.cuny.edu}, Alina Levine and Justin Bleich
 #' @references 	Kapelner, A, Bleich, J, Cohen, ZD, DeRubeis, RJ and Berk, R (2014) Inference for Treatment Regime Models in Personalized Medicine, arXiv
-#' @keywords 	Personalized medicine, bootstrap
-#' @import      foreach parallel doParallel survival stats graphics
+#' @keywords 	personalized medicine bootstrap
+#' @import      foreach parallel doParallel survival stats ggplot2
+#' @importFrom  Rcpp sourceCpp
+#' @useDynLib   PTE, .registration = TRUE
 ##### Run "library(roxygen2); roxygenise("PTE", clean = TRUE)" to regenerate all Rd files and NAMESPACE and DESCRIPTION file
 ##### but make sure you are in the root directory of the project
 NULL
 
-#' Mock RCT data with a continuous endpoint.
+#' Mock RCT data with a continuous endpoint
 #' 
 #' A list with two objects (a) \code{X}, a dataframe with n rows representing clinical subjects and columns: 
 #' treatment, x1, x2, x3, x4 and x5 where treatment is binary indicating the two arms of the clinical trial
@@ -24,7 +26,7 @@ NULL
 #' @author My Name \email{kapelner@@qc.cuny.edu}
 NULL
 
-#' Mock RCT data with a survival endpoint.
+#' Mock RCT data with a survival endpoint
 #' 
 #' A list with three objects (a) \code{X}, a dataframe with n rows representing clinical subjects and columns: 
 #' treatment, x1, x2, x3 and x4 where treatment is binary indicating the two arms of the clinical trial

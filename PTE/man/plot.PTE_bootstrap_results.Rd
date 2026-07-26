@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot.R
 \name{plot.PTE_bootstrap_results}
 \alias{plot.PTE_bootstrap_results}
-\title{Plots a summary of the bootstrap samples.}
+\title{Plots a summary of the bootstrap samples}
 \usage{
 \method{plot}{PTE_bootstrap_results}(x, ...)
 }
@@ -13,7 +13,7 @@ running the \code{PTE_bootstrap_inference} function.}
 \item{...}{Other methods passed to plot}
 }
 \description{
-Plots a summary of the bootstrap samples.
+Plots a summary of the bootstrap samples
 }
 \author{
 Adam Kapelner

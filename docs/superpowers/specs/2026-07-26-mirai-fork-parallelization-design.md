@@ -79,6 +79,9 @@ Replacing the current `cluster = makeCluster(num_cores); registerDoParallel(clus
 
 ```r
 cluster = if (.Platform$OS.type == "windows"){
+	if (!requireNamespace("mirai", quietly = TRUE)){
+		stop("The \"mirai\" package is required to parallelize on Windows. Please install it via install.packages(\"mirai\").")
+	}
 	mirai::make_cluster(num_cores)
 } else {
 	makeCluster(num_cores, type = "FORK")
@@ -89,7 +92,8 @@ on.exit(stopCluster(cluster), add = TRUE)
 
 Placed at the same point in the function (right before the first `%dopar%` loop), so
 both the bootstrap loop and (if enabled) the BCA loop share the one cluster, same as
-today.
+today. The `requireNamespace` check only runs (and only matters) on the Windows
+branch — Unix/Linux/macOS callers never touch `mirai` at all.
 
 ### 3. Cluster teardown
 
@@ -106,11 +110,16 @@ per OS.
 
 ## Dependencies
 
-- Add `mirai` to `DESCRIPTION` Imports.
+- Add `mirai` to `DESCRIPTION` `Suggests:`, not `Imports:` — it's only ever touched on
+  the Windows branch, so Unix/Linux/macOS installs of PTE never need it. Guarded at
+  runtime with `requireNamespace("mirai", quietly = TRUE)`, erroring with an
+  informative message (naming the package and the install command) if a Windows user
+  hasn't installed it.
 - Call it fully qualified as `mirai::make_cluster()` — no NAMESPACE entry needed for
   it, since it's used for exactly one call (unlike `parallel`/`foreach`/`doParallel`,
   which are blanket-`@import`ed and used unqualified throughout this function).
-- `foreach`, `doParallel`, and `parallel` stay exactly as they are today.
+- `foreach`, `doParallel`, and `parallel` stay exactly as they are today (all remain
+  required `Imports:`, used on every platform).
 
 ## Error handling
 
@@ -132,7 +141,10 @@ No test suite currently exists in the package. Verification plan:
   `mirai::make_cluster()`'s documented compatibility with
   `registerDoParallel()`/`stopCluster()` as a drop-in cluster type (confirmed via
   mirai's own vignette / R 4.5 official "MIRAI" cluster type documentation). Flagged
-  here as an assumption, not verified end-to-end on Windows.
+  here as an assumption, not verified end-to-end on Windows. On this Linux machine I
+  can still verify the `requireNamespace("mirai", ...)` guard itself is unreachable
+  dead code on the Unix branch (i.e. Unix runs never require `mirai` to be installed),
+  but not the Windows success path or its error message.
 
 ## Out of scope
 

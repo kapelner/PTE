@@ -3,7 +3,7 @@
 \docType{data}
 \name{continuous_example}
 \alias{continuous_example}
-\title{Mock RCT data with a continuous endpoint.}
+\title{Mock RCT data with a continuous endpoint}
 \description{
 A list with two objects (a) \code{X}, a dataframe with n rows representing clinical subjects and columns: 
 treatment, x1, x2, x3, x4 and x5 where treatment is binary indicating the two arms of the clinical trial

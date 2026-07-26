@@ -4,14 +4,28 @@
 \alias{PTE_bootstrap_inference}
 \title{Bootstrap inference for a prespecified personalization / recommendation model}
 \usage{
-PTE_bootstrap_inference(X, y, regression_type = "continuous",
-  incidence_metric = "odds_ratio", personalized_model_build_function = NULL,
-  censored = NULL, predict_function = function(mod, Xyleftout) {    
-  predict(mod, Xyleftout) }, difference_function = NULL,
-  cleanup_mod_function = NULL, y_higher_is_better = TRUE, verbose = FALSE,
-  full_verbose = FALSE, H_0_mu_equals = NULL, pct_leave_out = 0.1,
-  m_prop = 1, B = 3000, alpha = 0.05, run_bca_bootstrap = FALSE,
-  display_adversarial_score = FALSE, num_cores = NULL)
+PTE_bootstrap_inference(
+  X,
+  y,
+  regression_type = "continuous",
+  incidence_metric = "odds_ratio",
+  personalized_model_build_function = NULL,
+  censored = NULL,
+  predict_function = NULL,
+  difference_function = NULL,
+  cleanup_mod_function = NULL,
+  y_higher_is_better = TRUE,
+  verbose = FALSE,
+  full_verbose = FALSE,
+  H_0_mu_equals = NULL,
+  pct_leave_out = 0.1,
+  m_prop = 1,
+  B = 3000,
+  alpha = 0.05,
+  run_bca_bootstrap = FALSE,
+  display_adversarial_score = FALSE,
+  num_cores = NULL
+)
 }
 \arguments{
 \item{X}{A \eqn{n \times p}{n x p} dataframe of covariates where one column is labeled "treatment" and it
@@ -35,22 +49,24 @@ the default is "odds_ratio".}
                                                 that can be used for prediction later via \code{predict_function}. Here are the defaults
                                                 for each \code{regression_type}. They are linear models with first order interactions:
 
-                                                     personalized_model_build_function = switch(regression_type,
-                                                        continuous = function(Xytrain){ #defalt is OLS regression
-                                                            lm(y ~ . * treatment, 
-                                                                data = Xytrain)
-                                                        },
-                                                        incidence = function(Xytrain){ #default is logistic regression
-                                                            glm(y ~ . * treatment, 
-                                                                data = Xytrain, 
-                                                                family = "binomial")
-                                                        },
-                                                        survival = function(Xytrain){ #default is Weibull regression
-                                                            survreg(Surv(Xytrain$y, Xytrain$censored) ~ (. - censored) * treatment, 
-                                                                data = Xytrain, 
-                                                                dist = "weibull")
-                                                        }
-                                                    )}
+                                    \preformatted{
+                                    personalized_model_build_function = switch(regression_type,
+                                        continuous = function(Xytrain) \{ #defalt is OLS regression
+                                            lm(y ~ . * treatment,
+                                                data = Xytrain)
+                                        \},
+                                        incidence = function(Xytrain) \{ #default is logistic regression
+                                            glm(y ~ . * treatment,
+                                                data = Xytrain,
+                                                family = "binomial")
+                                        \},
+                                        survival = function(Xytrain) \{ #default is Weibull regression
+                                            survreg(Surv(Xytrain$y, Xytrain$censored) ~ (. - censored) * treatment,
+                                                data = Xytrain,
+                                                dist = "weibull")
+                                        \}
+                                    )
+                                    }}
 
 \item{censored}{Only required if the \code{regression_type} is "survival". In this case, this vector is of length \eqn{n} and is binary 
    where 0 indicates censored and 1 indicates uncensored. In a clinical trial, someone who is still alive 
@@ -63,18 +79,22 @@ will receive a censor value of 1.
                                     "Xyleftout", a subset of observations from \code{X}. This function must return a 
                                     scalar numeric quantity for comparison. The default function is \code{predict(mod, obs_left_out)} e.g. the default looks like:
 
-                                        function(mod, Xyleftout){
-                                            predict(mod, Xyleftout)
-                                        }}
+                                    \preformatted{
+                                    function(mod, Xyleftout) \{
+                                        predict(mod, Xyleftout)
+                                    \}
+                                    }}
 
 \item{difference_function}{A function which takes the result of one out of sample experiment (boostrap or not) of all n samples and converts it into a difference that
                                     will be used as a score in a score distribution to determine if the personalization model is statistically significantly able to distinguish
                                     subjects. The function looks as follows:
                                     
-                                        function(results, indices_1_1, indices_0_0, indices_0_1, indices_1_0){
-                                            ...
-                                            c(rec_vs_non_rec_diff_score, rec_vs_all_score, rec_vs_best_score)
-                                        } 
+                                    \preformatted{
+                                    function(results, indices_1_1, indices_0_0, indices_0_1, indices_1_0) \{
+                                        ...
+                                        c(rec_vs_non_rec_diff_score, rec_vs_all_score, rec_vs_best_score)
+                                    \}
+                                    }
 
 
                                     where \code{results} is a matrix consisting of columns of the estimated response of the treatment administered,

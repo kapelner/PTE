@@ -179,7 +179,8 @@ create_PTE_results_object = function(results, regression_type, y_higher_is_bette
 		all_diffs = difference_function(results, indices_1_1, indices_0_0, indices_0_1, indices_1_0)
 		return_obj$q_adversarial = all_diffs[1]
 		return_obj$q_average = all_diffs[2]
-		return_obj$q_best = all_diffs[3]	
+		return_obj$q_best = all_diffs[3]
+		return_obj$is_bad = is.nan(sum(all_diffs)) || any(is.na(all_diffs))
 	}
 	return_obj	
 }

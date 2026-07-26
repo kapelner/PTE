@@ -2,8 +2,8 @@
 % Please edit documentation in R/PTE.R
 \docType{package}
 \name{PTE}
-\alias{PTE}
 \alias{PTE-package}
+\alias{PTE}
 \title{Personalized Medicine Inference}
 \description{
 Personalized Medicine...

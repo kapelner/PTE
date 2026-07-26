@@ -1,10 +1,12 @@
 Package: PTE
 Type: Package
 Title: Personalized Treatment Evaluator
-Version: 1.7
-Date: 2019-01-24
-Author: Adam Kapelner, Alina Levine & Justin Bleich
-Maintainer: Adam Kapelner <kapelner@qc.cuny.edu>
+Version: 2.0
+Date: 2027-07-26
+Authors@R: c(
+    person("Adam", "Kapelner", email = "kapelner@qc.cuny.edu", role = c("aut", "cre")),
+    person("Alina", "Levine", role = "aut"),
+    person("Justin", "Bleich", role = "aut"))
 Description: We provide inference for personalized medicine models. Namely, we answer the questions: (1) how much better does a purported personalized recommendation engine for treatments do over a business-as-usual approach and (2) is that difference statistically significant?
 License: GPL-3
 Depends:
@@ -13,8 +15,15 @@ Imports:
 	foreach,
 	parallel,
     doParallel,
-    graphics,
-    grDevices,
+    ggplot2,
     stats,
-    survival
-RoxygenNote: 6.0.1
+    survival,
+    Rcpp
+LinkingTo:
+    Rcpp,
+    RcppEigen,
+    RcppNumerical
+RoxygenNote: 7.3.3
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

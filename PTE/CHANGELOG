@@ -1,3 +1,14 @@
+version 2.0
+
+* modernized the package using Rcpp and ggplot2 
+* Package was profiles and repetitive overhead eliminated
+* comprehensive test suite written
+* logistic regression estimation and weibull survival estimation were coded in C++ using RcppEigen for vast speedups
+* Parallelization improved using mirai (for windows) and forking (for *nix)
+* Compile flags optimize for user's specific hardware
+* fixed a bug in the difference_function branch
+* fixed rendering issues in the documentation
+
 version 1.7
 
 * Calculated and prints basic and studentized bootstrap confidence intervals by default

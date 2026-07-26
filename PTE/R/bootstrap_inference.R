@@ -16,23 +16,25 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' 												that can be used for prediction later via \code{predict_function}. Here are the defaults
 #' 												for each \code{regression_type}. They are linear models with first order interactions:
 #' 
-#' 											 		personalized_model_build_function = switch(regression_type,
-#' 														continuous = function(Xytrain){ #defalt is OLS regression
-#' 															lm(y ~ . * treatment, 
-#' 																data = Xytrain)
-#' 														},
-#' 														incidence = function(Xytrain){ #default is logistic regression
-#' 															glm(y ~ . * treatment, 
-#' 																data = Xytrain, 
-#' 																family = "binomial")
-#' 														},
-#' 														survival = function(Xytrain){ #default is Weibull regression
-#' 															survreg(Surv(Xytrain$y, Xytrain$censored) ~ (. - censored) * treatment, 
-#' 																data = Xytrain, 
-#' 																dist = "weibull")
-#' 														}
-#' 													)
-#' 
+#' 									\preformatted{
+#' 									personalized_model_build_function = switch(regression_type,
+#' 										continuous = function(Xytrain) \{ #defalt is OLS regression
+#' 											lm(y ~ . * treatment,
+#' 												data = Xytrain)
+#' 										\},
+#' 										incidence = function(Xytrain) \{ #default is logistic regression
+#' 											glm(y ~ . * treatment,
+#' 												data = Xytrain,
+#' 												family = "binomial")
+#' 										\},
+#' 										survival = function(Xytrain) \{ #default is Weibull regression
+#' 											survreg(Surv(Xytrain$y, Xytrain$censored) ~ (. - censored) * treatment,
+#' 												data = Xytrain,
+#' 												dist = "weibull")
+#' 										\}
+#' 									)
+#' 									}
+#'
 #' @param regression_type			A string indicating the regression problem. Legal values are "continous" (the response \code{y} is
 #' 									a real number with no missing data, the default), "incidence" (the reponse \code{y} is
 #' 									either 0 or 1) and "survival". If the type is "survival", the user must also supply additional data via the 
@@ -51,19 +53,23 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' 									"Xyleftout", a subset of observations from \code{X}. This function must return a 
 #' 									scalar numeric quantity for comparison. The default function is \code{predict(mod, obs_left_out)} e.g. the default looks like:
 #' 
-#' 										function(mod, Xyleftout){
-#' 											predict(mod, Xyleftout)
-#' 										}
-#' 
+#' 									\preformatted{
+#' 									function(mod, Xyleftout) \{
+#' 										predict(mod, Xyleftout)
+#' 									\}
+#' 									}
+#'
 #' @param difference_function		A function which takes the result of one out of sample experiment (boostrap or not) of all n samples and converts it into a difference that
 #' 									will be used as a score in a score distribution to determine if the personalization model is statistically significantly able to distinguish
 #' 									subjects. The function looks as follows:
 #' 									
-#' 										function(results, indices_1_1, indices_0_0, indices_0_1, indices_1_0){
-#' 											...
-#' 											c(rec_vs_non_rec_diff_score, rec_vs_all_score, rec_vs_best_score)
-#' 										} 
-#' 
+#' 									\preformatted{
+#' 									function(results, indices_1_1, indices_0_0, indices_0_1, indices_1_0) \{
+#' 										...
+#' 										c(rec_vs_non_rec_diff_score, rec_vs_all_score, rec_vs_best_score)
+#' 									\}
+#' 									}
+#'
 #' 
 #' 									where \code{results} is a matrix consisting of columns of the estimated response of the treatment administered,
 #' 									the estimated response of the counterfactual treatment, the administered treatment, the recommended treatment based on the personalization
@@ -159,7 +165,7 @@ PTE_bootstrap_inference = function(X, y,
 		incidence_metric = "odds_ratio",
 		personalized_model_build_function = NULL,
 		censored = NULL,
-		predict_function = function(mod, Xyleftout){predict(mod, Xyleftout)},
+		predict_function = NULL,
 		difference_function = NULL,
 		cleanup_mod_function = NULL,
 		y_higher_is_better = TRUE,		
@@ -247,33 +253,50 @@ PTE_bootstrap_inference = function(X, y,
 		personalized_model_build_function_default = FALSE
 	}
 
+	predict_function_default = is.null(predict_function)
+	if (predict_function_default){
+		predict_function = function(mod, Xyleftout){predict(mod, Xyleftout)}
+	}
+
 	#create master dataframe for convenience
 	Xy = cbind(X, censored, y)
 
+	#the default continuous (OLS) model/predict pair can bypass lm()/predict.lm()'s per-fold
+	#model.frame/model.matrix/factor-level bookkeeping by precomputing the design matrices once
+	#up front and doing .lm.fit() + matrix multiplication per fold instead (see fast_lm_default.R).
+	#This only applies to the *default* functions since custom user functions are opaque to us,
+	#and only when there's no missing data since NA-dropping would otherwise need to happen per-fold.
+	use_fast_lm = personalized_model_build_function_default && predict_function_default &&
+		regression_type == "continuous" && !anyNA(Xy)
+	fast_lm_objects = if (use_fast_lm) create_fast_lm_objects(Xy) else NULL
+
 	#take care of cutoffs for leave out windows
-	cutoff_obj = create_cutoffs_for_K_fold_cv(pct_leave_out, n)	
-	
+	cutoff_obj = create_cutoffs_for_K_fold_cv(pct_leave_out, n)
+
     ##run actual model to get observed score
     observed_run_results = list()
     observed_q_scores = list()
 
 	#run oos results
 	observed_raw_results = create_raw_results_matrix(n)
-	for (l_test in 1 : cutoff_obj$num_windows){		
+	observed_boot_idx = 1 : n #no resampling for the observed (non-bootstrap) run
+	for (l_test in 1 : cutoff_obj$num_windows){
 		left_out_window_test = cutoff_obj$begin_cutoffs_for_leave_outs[l_test] : cutoff_obj$end_cutoffs_for_leave_outs[l_test]
 #		print(left_out_window_test)
-	  	observed_raw_results[left_out_window_test, ] = 
+	  	observed_raw_results[left_out_window_test, ] =
 			run_model_on_left_out_record_results_and_cleanup(
 					Xy,
 					regression_type,
 					y_higher_is_better,
-					left_out_window_test, 
+					left_out_window_test,
 					left_out_window_test,
 					personalized_model_build_function,
 					predict_function,
 					cleanup_mod_function,
 					full_verbose,
-					verbose)
+					verbose,
+					fast_lm_objects,
+					observed_boot_idx)
 	}
 	observed_raw_results
 	observed_run_results = create_PTE_results_object(observed_raw_results, regression_type, y_higher_is_better, difference_function, incidence_metric)
@@ -305,10 +328,13 @@ PTE_bootstrap_inference = function(X, y,
     	iter_list = list()
     	iter_list$q_scores = list()
 		raw_results = create_raw_results_matrix(n)
-		
-		#pull a bootstrap sample
-		Xyb = Xy[sample(1 : n, round(m_prop * n), replace = TRUE), ]
-		
+
+		#pull a bootstrap sample. When the fast lm path is active, avoid materializing the
+		#resampled data frame entirely -- just keep the index vector and index into the
+		#precomputed design matrices per-fold instead (see run_model_on_left_out_record_results_and_cleanup.R)
+		boot_idx_b = sample(1 : n, round(m_prop * n), replace = TRUE)
+		Xyb = if (use_fast_lm) Xy else Xy[boot_idx_b, ]
+
 		for (l_test in 1 : cutoff_obj$num_windows){
 			left_out_window_test = cutoff_obj$begin_cutoffs_for_leave_outs[l_test] : cutoff_obj$end_cutoffs_for_leave_outs[l_test]
 			raw_results[left_out_window_test, ] = run_model_on_left_out_record_results_and_cleanup(
@@ -321,7 +347,9 @@ PTE_bootstrap_inference = function(X, y,
 					predict_function,
 					cleanup_mod_function,
 					full_verbose,
-					verbose)
+					verbose,
+					fast_lm_objects,
+					boot_idx_b)
 		}
 		#iter_list$raw_results = raw_results
 		iter_list$run_results = create_PTE_results_object(raw_results, regression_type, y_higher_is_better, difference_function, incidence_metric)
@@ -433,8 +461,9 @@ PTE_bootstrap_inference = function(X, y,
 			iter_list$bca_q_scores = list()
 			
 			bca_raw_results = create_raw_results_matrix(n - 1)
-			Xy_minus_i = Xy[-i, ]
-			
+			bca_boot_idx = (1 : n)[-i] #maps positions in the "leave subject i out entirely" set back to Xy's rows
+			Xy_minus_i = if (use_fast_lm) Xy else Xy[-i, ]
+
 			for (l_test in 1 : cutoff_obj$num_windows){
 				left_out_window_test = cutoff_obj$begin_cutoffs_for_leave_outs[l_test] : cutoff_obj$end_cutoffs_for_leave_outs[l_test]
 				bca_raw_results[left_out_window_test, ] = run_model_on_left_out_record_results_and_cleanup(
@@ -447,7 +476,9 @@ PTE_bootstrap_inference = function(X, y,
 						predict_function,
 						cleanup_mod_function,
 						full_verbose,
-						verbose)
+						verbose,
+						fast_lm_objects,
+						bca_boot_idx)
 			}
 			iter_list$bca_run_results = create_PTE_results_object(bca_raw_results, regression_type, y_higher_is_better, difference_function, incidence_metric)
 			iter_list$bca_q_scores$adversarial = iter_list$bca_run_results$q_adversarial

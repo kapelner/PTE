@@ -3,7 +3,7 @@
 \docType{data}
 \name{survival_example}
 \alias{survival_example}
-\title{Mock RCT data with a survival endpoint.}
+\title{Mock RCT data with a survival endpoint}
 \description{
 A list with three objects (a) \code{X}, a dataframe with n rows representing clinical subjects and columns: 
 treatment, x1, x2, x3 and x4 where treatment is binary indicating the two arms of the clinical trial
