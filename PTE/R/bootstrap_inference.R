@@ -328,8 +328,21 @@ PTE_bootstrap_inference = function(X, y,
 	if (is.null(num_cores)){
 		num_cores = getOption("mc.cores")
 	}
-	cluster = makeCluster(num_cores)
-	registerDoParallel(cluster)
+	if (num_cores == 1){
+		registerDoSEQ()
+		cluster = NULL
+	} else {
+		cluster = if (.Platform$OS.type == "windows"){
+			if (!requireNamespace("mirai", quietly = TRUE)){
+				stop("The \"mirai\" package is required to parallelize on Windows. Please install it via install.packages(\"mirai\").")
+			}
+			mirai::make_cluster(num_cores)
+		} else {
+			makeCluster(num_cores, type = "FORK")
+		}
+		registerDoParallel(cluster)
+	}
+	on.exit(if (!is.null(cluster)) stopCluster(cluster), add = TRUE)
   
 	boot_list = foreach(b = 1 : B, .packages = (.packages())) %dopar% {
 		
@@ -512,8 +525,6 @@ PTE_bootstrap_inference = function(X, y,
 			bca_q_scores$average[i] = full_list[[i]]$bca_q_scores$average
 			bca_q_scores$best[i] = full_list[[i]]$bca_q_scores$best
 		}
-		
-		stopCluster(cluster) ## remove cluster
 		
 		##need to deal with the reversal of signs -- just flip sign if y_higher_is_better is FALSE
 		if (!y_higher_is_better){
