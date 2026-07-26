@@ -149,9 +149,10 @@ The default is 3000.}
 \item{display_adversarial_score}{The adversarial score records the personalization metric versus the deliberate opposite of the personalization. This does not correspond
 to any practical situation but it is useful for debugging. Default is \code{FALSE}.}
 
-\item{num_cores}{The number of cores to use in parallel to run the bootstrap samples more rapidly. 
-Defaults to \code{NULL} which automatically sets it to one if there is one available processor or
-if there are multiple available processors, the number of available processors save one.}
+\item{num_cores}{The number of cores to use in parallel to run the bootstrap samples more rapidly.
+Defaults to \code{NULL} which uses \code{max(cores - 1, 1)} where \code{cores} is detected
+once when the PTE package is loaded and cached in \code{options(mc.cores = ...)} (see
+\code{?options}). Pass an explicit value here to override the cached default for a single call.}
 }
 \value{
 A results object of type "PTE_bootstrap_results" that contains much information about the observed results

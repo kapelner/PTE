@@ -21,3 +21,9 @@ test_that(".onLoad does not clobber a pre-existing mc.cores option", {
 
 	expect_identical(getOption("mc.cores"), 999L)
 })
+
+test_that("num_cores defaults to getOption('mc.cores') when left NULL", {
+	dat = make_continuous_data()
+	res = PTE_bootstrap_inference(dat$X, dat$y, regression_type = "continuous", B = 5)
+	expect_valid_pte_result(res, 5)
+})

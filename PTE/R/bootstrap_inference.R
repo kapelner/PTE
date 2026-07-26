@@ -112,9 +112,10 @@ THRESHOLD_FOR_BOOTSTRAP_WARNING_MESSAGE = 0.01
 #' @param run_bca_bootstrap			Do the BCA bootstrap as well. This takes double the time. It defaults to \code{FALSE}.
 #' @param display_adversarial_score	The adversarial score records the personalization metric versus the deliberate opposite of the personalization. This does not correspond
 #' 									to any practical situation but it is useful for debugging. Default is \code{FALSE}.
-#' @param num_cores					The number of cores to use in parallel to run the bootstrap samples more rapidly. 
-#' 									Defaults to \code{NULL} which automatically sets it to one if there is one available processor or
-#' 									if there are multiple available processors, the number of available processors save one.   
+#' @param num_cores					The number of cores to use in parallel to run the bootstrap samples more rapidly.
+#' 									Defaults to \code{NULL} which uses \code{max(cores - 1, 1)} where \code{cores} is detected
+#' 									once when the PTE package is loaded and cached in \code{options(mc.cores = ...)} (see
+#' 									\code{?options}). Pass an explicit value here to override the cached default for a single call.
 #' 
 #' @return 							A results object of type "PTE_bootstrap_results" that contains much information about the observed results
 #' 									and the bootstrap runs, including hypothesis testing and confidence intervals.
@@ -261,14 +262,21 @@ PTE_bootstrap_inference = function(X, y,
 	#create master dataframe for convenience
 	Xy = cbind(X, censored, y)
 
-	#the default continuous (OLS) model/predict pair can bypass lm()/predict.lm()'s per-fold
-	#model.frame/model.matrix/factor-level bookkeeping by precomputing the design matrices once
-	#up front and doing .lm.fit() + matrix multiplication per fold instead (see fast_lm_default.R).
-	#This only applies to the *default* functions since custom user functions are opaque to us,
-	#and only when there's no missing data since NA-dropping would otherwise need to happen per-fold.
-	use_fast_lm = personalized_model_build_function_default && predict_function_default &&
-		regression_type == "continuous" && !anyNA(Xy)
+	#the default continuous (OLS), incidence (logistic) and survival (Weibull AFT) model/predict
+	#pairs can each bypass their R-level fit/predict function's per-fold model.frame/model.matrix/
+	#factor-level bookkeeping by precomputing the design matrices once up front and fitting via a
+	#compiled Rcpp routine + matrix multiplication per fold instead (see fast_lm_default.R,
+	#fast_glm_default.R, fast_weibull_default.R). This only applies to the *default* functions since
+	#custom user functions are opaque to us, and only when there's no missing data since NA-dropping
+	#would otherwise need to happen per-fold.
+	fast_path_eligible = personalized_model_build_function_default && predict_function_default && !anyNA(Xy)
+	use_fast_lm = fast_path_eligible && regression_type == "continuous"
+	use_fast_glm = fast_path_eligible && regression_type == "incidence"
+	use_fast_weibull = fast_path_eligible && regression_type == "survival"
+	use_fast_path = use_fast_lm || use_fast_glm || use_fast_weibull
 	fast_lm_objects = if (use_fast_lm) create_fast_lm_objects(Xy) else NULL
+	fast_glm_objects = if (use_fast_glm) create_fast_glm_objects(Xy) else NULL
+	fast_weibull_objects = if (use_fast_weibull) create_fast_weibull_objects(Xy) else NULL
 
 	#take care of cutoffs for leave out windows
 	cutoff_obj = create_cutoffs_for_K_fold_cv(pct_leave_out, n)
@@ -296,7 +304,9 @@ PTE_bootstrap_inference = function(X, y,
 					full_verbose,
 					verbose,
 					fast_lm_objects,
-					observed_boot_idx)
+					observed_boot_idx,
+					fast_glm_objects,
+					fast_weibull_objects)
 	}
 	observed_raw_results
 	observed_run_results = create_PTE_results_object(observed_raw_results, regression_type, y_higher_is_better, difference_function, incidence_metric)
@@ -315,10 +325,8 @@ PTE_bootstrap_inference = function(X, y,
 	q_scores[["average"]] = array(NA, B)
 	q_scores[["best"]] = array(NA, B)
 	
-    #will work on windows -- not sure about unix/mac
 	if (is.null(num_cores)){
-		num_cores = as.numeric(Sys.getenv('NUMBER_OF_PROCESSORS'))
-		num_cores = max(num_cores - 1, 1)
+		num_cores = getOption("mc.cores")
 	}
 	cluster = makeCluster(num_cores)
 	registerDoParallel(cluster)
@@ -329,11 +337,11 @@ PTE_bootstrap_inference = function(X, y,
     	iter_list$q_scores = list()
 		raw_results = create_raw_results_matrix(n)
 
-		#pull a bootstrap sample. When the fast lm path is active, avoid materializing the
+		#pull a bootstrap sample. When a fast path is active, avoid materializing the
 		#resampled data frame entirely -- just keep the index vector and index into the
 		#precomputed design matrices per-fold instead (see run_model_on_left_out_record_results_and_cleanup.R)
 		boot_idx_b = sample(1 : n, round(m_prop * n), replace = TRUE)
-		Xyb = if (use_fast_lm) Xy else fast_row_subset(Xy, boot_idx_b)
+		Xyb = if (use_fast_path) Xy else fast_row_subset(Xy, boot_idx_b)
 
 		for (l_test in 1 : cutoff_obj$num_windows){
 			left_out_window_test = cutoff_obj$begin_cutoffs_for_leave_outs[l_test] : cutoff_obj$end_cutoffs_for_leave_outs[l_test]
@@ -349,7 +357,9 @@ PTE_bootstrap_inference = function(X, y,
 					full_verbose,
 					verbose,
 					fast_lm_objects,
-					boot_idx_b)
+					boot_idx_b,
+					fast_glm_objects,
+					fast_weibull_objects)
 		}
 		#iter_list$raw_results = raw_results
 		iter_list$run_results = create_PTE_results_object(raw_results, regression_type, y_higher_is_better, difference_function, incidence_metric)
@@ -462,7 +472,7 @@ PTE_bootstrap_inference = function(X, y,
 			
 			bca_raw_results = create_raw_results_matrix(n - 1)
 			bca_boot_idx = (1 : n)[-i] #maps positions in the "leave subject i out entirely" set back to Xy's rows
-			Xy_minus_i = if (use_fast_lm) Xy else fast_row_subset(Xy, -i)
+			Xy_minus_i = if (use_fast_path) Xy else fast_row_subset(Xy, -i)
 
 			for (l_test in 1 : cutoff_obj$num_windows){
 				left_out_window_test = cutoff_obj$begin_cutoffs_for_leave_outs[l_test] : cutoff_obj$end_cutoffs_for_leave_outs[l_test]
@@ -478,7 +488,9 @@ PTE_bootstrap_inference = function(X, y,
 						full_verbose,
 						verbose,
 						fast_lm_objects,
-						bca_boot_idx)
+						bca_boot_idx,
+						fast_glm_objects,
+						fast_weibull_objects)
 			}
 			iter_list$bca_run_results = create_PTE_results_object(bca_raw_results, regression_type, y_higher_is_better, difference_function, incidence_metric)
 			iter_list$bca_q_scores$adversarial = iter_list$bca_run_results$q_adversarial
