@@ -14,6 +14,6 @@ Kapelner, A, Bleich, J, Cohen, ZD, DeRubeis, RJ and Berk, R (2014) Inference for
 \author{
 Adam Kapelner \email{kapelner@qc.cuny.edu}, Alina Levine and Justin Bleich
 }
-\keyword{Personalized}
 \keyword{bootstrap}
-\keyword{medicine,}
+\keyword{medicine}
+\keyword{personalized}

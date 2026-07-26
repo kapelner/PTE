@@ -34,9 +34,9 @@ run_model_on_left_out_record_results_and_cleanup = function(
 			#lm.fit()/lm() do (see ?.lm.fit, "the coefficients ... may be lost"), so a naive
 			#X %*% coefficients here can silently diverge from predict.lm()'s answer. Fall back to
 			#the exact original computation for this fold only, to guarantee identical behavior.
-			Xytrain = Xy[train_rows, ]
+			Xytrain = fast_row_subset(Xy, train_rows)
 			Xytrain$censored = NULL
-			Xyleftout = Xy[test_rows, 1 : (ncol(Xy) - 1)]
+			Xyleftout = fast_row_subset(Xy, test_rows, 1 : (ncol(Xy) - 1))
 			mod = personalized_model_build_function(Xytrain)
 			Xyleftout$treatment = 0
 			yhatTx0s = predict_function(mod, Xyleftout)
@@ -53,10 +53,10 @@ run_model_on_left_out_record_results_and_cleanup = function(
 		}
 	} else {
 		#the left one out matrix has n-1 rows and will be considered the "training data"
-		Xytrain = Xy[-train_on_all_except_these, ]
+		Xytrain = fast_row_subset(Xy, -train_on_all_except_these)
 
 		#pull out the record of the left-one-out subject
-		Xyleftout = Xy[leave_outs_to_be_predicted, 1 : (ncol(Xy) - 1)] #leave out y
+		Xyleftout = fast_row_subset(Xy, leave_outs_to_be_predicted, 1 : (ncol(Xy) - 1)) #leave out y
 
 		if (regression_type != "survival"){
 			Xytrain$censored = NULL
@@ -68,7 +68,7 @@ run_model_on_left_out_record_results_and_cleanup = function(
 		}
 
 		#also take note of what actually happened to this subject in the experiment
-		real_ys = Xy[leave_outs_to_be_predicted, ncol(Xy)]
+		real_ys = .subset2(Xy, ncol(Xy))[leave_outs_to_be_predicted]
 		orig_trts = Xyleftout$treatment
 
 		#now evaluate the left-one-out subject on the model for both his true treatment and his counterfactual

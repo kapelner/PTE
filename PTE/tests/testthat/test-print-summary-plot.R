@@ -26,7 +26,7 @@ test_that("summary.PTE_bootstrap_results produces the same output as print", {
 })
 
 test_that("plot.PTE_bootstrap_results runs without error and returns invisibly", {
-	grDevices::pdf(grDevices::nullfile())
+	grDevices::pdf(nullfile())
 	on.exit(grDevices::dev.off(), add = TRUE)
 
 	expect_no_error(return_value <- withVisible(plot(res)))

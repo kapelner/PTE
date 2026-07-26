@@ -207,7 +207,7 @@ PTE_bootstrap_inference = function(X, y,
 	
 	#ensure we have a treatment column in X
 	if (!("treatment" %in% colnames(X))){
-		stop("Your data frame must have a column \"\treatment\" which is an indicator vector of the allocation in the RCT.")
+		stop("Your data frame must have a column \"treatment\" which is an indicator vector of the allocation in the RCT.")
 	}
 	#ensure treatment is a factor variable with levels zero and one
 	if (!(class(X$treatment) %in% c("numeric", "integer"))){
@@ -333,7 +333,7 @@ PTE_bootstrap_inference = function(X, y,
 		#resampled data frame entirely -- just keep the index vector and index into the
 		#precomputed design matrices per-fold instead (see run_model_on_left_out_record_results_and_cleanup.R)
 		boot_idx_b = sample(1 : n, round(m_prop * n), replace = TRUE)
-		Xyb = if (use_fast_lm) Xy else Xy[boot_idx_b, ]
+		Xyb = if (use_fast_lm) Xy else fast_row_subset(Xy, boot_idx_b)
 
 		for (l_test in 1 : cutoff_obj$num_windows){
 			left_out_window_test = cutoff_obj$begin_cutoffs_for_leave_outs[l_test] : cutoff_obj$end_cutoffs_for_leave_outs[l_test]
@@ -462,7 +462,7 @@ PTE_bootstrap_inference = function(X, y,
 			
 			bca_raw_results = create_raw_results_matrix(n - 1)
 			bca_boot_idx = (1 : n)[-i] #maps positions in the "leave subject i out entirely" set back to Xy's rows
-			Xy_minus_i = if (use_fast_lm) Xy else Xy[-i, ]
+			Xy_minus_i = if (use_fast_lm) Xy else fast_row_subset(Xy, -i)
 
 			for (l_test in 1 : cutoff_obj$num_windows){
 				left_out_window_test = cutoff_obj$begin_cutoffs_for_leave_outs[l_test] : cutoff_obj$end_cutoffs_for_leave_outs[l_test]

@@ -1,0 +1,29 @@
+#!/bin/sh
+# Generates src/Makevars from src/Makevars.in.
+#
+# By default this produces a fully portable build (no -march=native, no
+# forced -O3/LTO): required for CRAN, and safe for distributing a compiled
+# binary to a machine other than the one that built it.
+#
+# For a machine-tuned, faster build (e.g. local benchmarking on your own
+# machine), opt in at install time:
+#
+#   PTE_NATIVE_SPEED=1 R CMD INSTALL .
+#
+# This adds -march=native -mtune=native -O3 -flto, which ties the resulting
+# binary to the exact CPU it was compiled on -- do not use this for a build
+# you intend to share or distribute.
+
+PTE_CXX_EXTRA_FLAGS=""
+PTE_LIBS_EXTRA=""
+
+if [ "x${PTE_NATIVE_SPEED}" = "x1" ]; then
+  PTE_CXX_EXTRA_FLAGS=" -march=native -mtune=native -O3 -flto"
+  PTE_LIBS_EXTRA=" -flto"
+fi
+
+sed -e "s|@PTE_CXX_EXTRA_FLAGS@|${PTE_CXX_EXTRA_FLAGS}|" \
+    -e "s|@PTE_LIBS_EXTRA@|${PTE_LIBS_EXTRA}|" \
+    src/Makevars.in > src/Makevars
+
+exit 0

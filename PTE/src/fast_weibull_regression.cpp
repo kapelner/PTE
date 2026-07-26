@@ -79,10 +79,10 @@ public:
 
 //' @title Compute Weibull Regression Score
 //' @description Calculates the score vector (gradient of the log-likelihood) for a Weibull AFT regression model.
-//' @param X A numeric matrix of predictors.
-//' @param y A numeric vector of survival times.
-//' @param dead A numeric vector of event indicators.
-//' @param params A numeric vector of parameters [beta, log_sigma].
+//' @param X_sexp A numeric matrix of predictors.
+//' @param y_sexp A numeric vector of survival times.
+//' @param dead_sexp A numeric vector of event indicators.
+//' @param params_sexp A numeric vector of parameters [beta, log_sigma].
 //' @return A numeric vector representing the score.
 //' @keywords internal
 //' @noRd
@@ -108,10 +108,10 @@ Eigen::VectorXd get_weibull_regression_score_cpp(SEXP X_sexp,
 
 //' @title Compute Weibull Regression Hessian
 //' @description Calculates the Hessian matrix (second derivatives of the log-likelihood) for a Weibull AFT regression model.
-//' @param X A numeric matrix of predictors.
-//' @param y A numeric vector of survival times.
-//' @param dead A numeric vector of event indicators.
-//' @param params A numeric vector of parameters [beta, log_sigma].
+//' @param X_sexp A numeric matrix of predictors.
+//' @param y_sexp A numeric vector of survival times.
+//' @param dead_sexp A numeric vector of event indicators.
+//' @param params_sexp A numeric vector of parameters [beta, log_sigma].
 //' @return A numeric matrix representing the Hessian.
 //' @keywords internal
 //' @noRd
@@ -215,10 +215,10 @@ NumericVector compute_weibull_rand_bootstrap_parallel_cpp(
 
 //' @title Fast Weibull AFT Regression (C++)
 //' @description Weibull Accelerated Failure Time model fitting.
-//' @param X A numeric matrix of predictors.
-//' @param y A numeric vector of survival times.
-//' @param dead A numeric vector of event indicators (1=event, 0=censored).
-//' @param warm_start_beta Optional starting values for coefficients.
+//' @param X_sexp A numeric matrix of predictors.
+//' @param y_sexp A numeric vector of survival times.
+//' @param dead_sexp A numeric vector of event indicators (1=event, 0=censored).
+//' @param warm_start_params Optional starting values for coefficients.
 //' @param smart_cold_start Logical. If TRUE, use an initial OLS-based guess.
 //' @param estimate_only Logical. If TRUE, do not compute variance-covariance.
 //' @param maxit Maximum number of iterations.

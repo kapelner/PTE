@@ -6,6 +6,9 @@ PTE/data/cpt1.RData
 PTE/data/seattle.RData
 PTE/data/survival.RData
 .project
+*.o
+*.so
+PTE/src/Makevars
 /bin/
 /bin/
 /bin/

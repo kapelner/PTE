@@ -44,7 +44,7 @@ test_that("missing treatment column errors", {
 	X_no_treatment = data.frame(x = rnorm(10))
 	expect_error(
 		PTE_bootstrap_inference(X_no_treatment, base_y),
-		"treatment"
+		"indicator vector of the allocation"
 	)
 })
 
