@@ -4,7 +4,7 @@
 #' @docType 	package
 #' @title 		Personalized Medicine Inference
 #' @author 		Adam Kapelner \email{kapelner@@qc.cuny.edu}, Alina Levine and Justin Bleich
-#' @references 	Kapelner, A, Bleich, J, Cohen, ZD, DeRubeis, RJ and Berk, R (2014) Inference for Treatment Regime Models in Personalized Medicine, arXiv
+#' @references 	Kapelner, A, Bleich, J, Cohen, ZD, DeRubeis, RJ and Berk, R (2021) Inference for Treatment Regime Models in Personalized Medicine. Frontiers in Big Data. \url{https://www.frontiersin.org/journals/big-data/articles/10.3389/fdata.2021.572532/full}
 #' @keywords 	personalized medicine bootstrap
 #' @import      foreach parallel doParallel survival stats ggplot2
 #' @importFrom  Rcpp sourceCpp

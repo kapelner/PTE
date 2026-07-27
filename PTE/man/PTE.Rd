@@ -9,7 +9,7 @@
 Personalized Medicine...
 }
 \references{
-Kapelner, A, Bleich, J, Cohen, ZD, DeRubeis, RJ and Berk, R (2014) Inference for Treatment Regime Models in Personalized Medicine, arXiv
+Kapelner, A, Bleich, J, Cohen, ZD, DeRubeis, RJ and Berk, R (2021) Inference for Treatment Regime Models in Personalized Medicine. Frontiers in Big Data. \url{https://www.frontiersin.org/journals/big-data/articles/10.3389/fdata.2021.572532/full}
 }
 \seealso{
 Useful links:

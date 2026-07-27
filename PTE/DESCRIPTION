@@ -1,8 +1,8 @@
 Package: PTE
 Type: Package
 Title: Personalized Treatment Evaluator
-Version: 2.0
-Date: 2026-07-26
+Version: 2.0.1
+Date: 2026-07-27
 Authors@R: c(
     person("Adam", "Kapelner", email = "kapelner@qc.cuny.edu", role = c("aut", "cre")),
     person("Alina", "Levine", role = "aut"),
