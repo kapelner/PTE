@@ -1,7 +1,7 @@
 # S3 methods for PTE_bootstrap_results: print(), summary(), plot().
 
 dat = make_continuous_data(n = 60)
-res = PTE_bootstrap_inference(dat$X, dat$y, regression_type = "continuous", B = 15, num_cores = 2)
+res = PTE_bootstrap_inference(dat$X, dat$y, regression_type = "continuous", B = 15, num_cores = 1)
 
 test_that("print.PTE_bootstrap_results reports I_random and I_best but not I_adversarial by default", {
 	out = capture.output(print(res))

@@ -1,4 +1,5 @@
 ## PTE src/Makevars.in -- processed by ../configure (or ../configure.win) into Makevars.
 ## Do not edit Makevars directly; it is generated and overwritten on every install.
+@PTE_MAKE_EXTRA@
 PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS) -DNDEBUG -DEIGEN_NO_DEBUG@PTE_CXX_EXTRA_FLAGS@
 PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS) $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) -fstack-protector@PTE_LIBS_EXTRA@

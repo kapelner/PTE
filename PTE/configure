@@ -10,20 +10,33 @@
 #
 #   PTE_NATIVE_SPEED=1 R CMD INSTALL .
 #
-# This adds -march=native -mtune=native -O3 -flto, which ties the resulting
-# binary to the exact CPU it was compiled on -- do not use this for a build
-# you intend to share or distribute.
+# This adds -march=native -mtune=native -O3 -Wno-ignored-attributes, which
+# ties the resulting binary to the exact CPU it was compiled on -- do not use
+# this for a build you intend to share or distribute.
+#
+# LTO is a separate, independent opt-in (PTE_NATIVE_LTO=1): this toolchain has
+# shown non-deterministic link failures under -flto (identical flags
+# succeeding on one build and producing an unloadable .so -- "undefined
+# symbol" at dyn.load() -- on the next), so it stays off even under
+# PTE_NATIVE_SPEED=1 unless explicitly requested.
 
 PTE_CXX_EXTRA_FLAGS=""
 PTE_LIBS_EXTRA=""
+PTE_MAKE_EXTRA=""
 
 if [ "x${PTE_NATIVE_SPEED}" = "x1" ]; then
-  PTE_CXX_EXTRA_FLAGS=" -march=native -mtune=native -O3 -flto"
+  PTE_CXX_EXTRA_FLAGS=" -march=native -mtune=native -O3 -Wno-ignored-attributes"
+fi
+
+if [ "x${PTE_NATIVE_LTO}" = "x1" ]; then
+  PTE_CXX_EXTRA_FLAGS="${PTE_CXX_EXTRA_FLAGS} -flto"
   PTE_LIBS_EXTRA=" -flto"
+  PTE_MAKE_EXTRA=".NOTPARALLEL:"
 fi
 
 sed -e "s|@PTE_CXX_EXTRA_FLAGS@|${PTE_CXX_EXTRA_FLAGS}|" \
     -e "s|@PTE_LIBS_EXTRA@|${PTE_LIBS_EXTRA}|" \
+    -e "s|@PTE_MAKE_EXTRA@|${PTE_MAKE_EXTRA}|" \
     src/Makevars.in > src/Makevars
 
 exit 0

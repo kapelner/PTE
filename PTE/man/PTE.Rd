@@ -11,6 +11,14 @@ Personalized Medicine...
 \references{
 Kapelner, A, Bleich, J, Cohen, ZD, DeRubeis, RJ and Berk, R (2014) Inference for Treatment Regime Models in Personalized Medicine, arXiv
 }
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/kapelner/PTE}
+  \item Report bugs at \url{https://github.com/kapelner/PTE/issues}
+}
+
+}
 \author{
 Adam Kapelner \email{kapelner@qc.cuny.edu}, Alina Levine and Justin Bleich
 }

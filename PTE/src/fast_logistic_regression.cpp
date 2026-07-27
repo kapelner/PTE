@@ -8,6 +8,20 @@
 
 using namespace Rcpp;
 
+ModelResult fast_logistic_regression_internal(const Eigen::Ref<const Eigen::MatrixXd>& X,
+                                              const Eigen::Ref<const Eigen::VectorXd>& y,
+                                              const Eigen::Ref<const Eigen::VectorXd>& weights,
+                                              Rcpp::Nullable<Rcpp::NumericVector> warm_start_beta,
+                                              bool smart_cold_start,
+                                              int maxit,
+                                              double tol,
+                                              Rcpp::Nullable<Rcpp::IntegerVector> fixed_idx,
+                                              Rcpp::Nullable<Rcpp::NumericVector> fixed_values,
+                                              std::string optimization_alg,
+                                              Rcpp::Nullable<Rcpp::NumericVector> warm_start_weights,
+                                              Rcpp::Nullable<Rcpp::NumericMatrix> warm_start_fisher_info,
+                                              bool estimate_only);
+
 namespace {
 
 inline double plogis_manual(double x) {
@@ -27,28 +41,11 @@ inline void score_weighted_crossprod_colwise_assign(const Eigen::MatrixXd& X,
                                                     Eigen::VectorXd& score,
                                                     Eigen::MatrixXd& out) {
     const int n = X.rows();
-    const int p = X.cols();
-    score.setZero();
-    out.setZero();
-    for (int j = 0; j < p; ++j) {
-        const double* xj = X.col(j).data();
-        for (int k = j; k < p; ++k) {
-            const double* xk = X.col(k).data();
-            double acc = 0.0;
-            if (k == j) {
-                double score_acc = 0.0;
-                for (int i = 0; i < n; ++i) {
-                    acc += xj[i] * w[i] * xj[i];
-                    score_acc += xj[i] * residual[i];
-                }
-                score[j] = score_acc;
-            } else {
-                for (int i = 0; i < n; ++i) acc += xj[i] * w[i] * xk[i];
-            }
-            out(j, k) = acc;
-            if (k != j) out(k, j) = acc;
-        }
+    if (residual.rows() != n || w.rows() != n) {
+        Rcpp::stop("score_weighted_crossprod_colwise_assign: vector has incompatible dimensions");
     }
+    score.noalias() = X.transpose() * residual;
+    out = weighted_crossprod(X, w);
 }
 
 class LogisticLbfgsObjective : public Numer::MFuncGrad {
@@ -69,20 +66,157 @@ public:
 
     virtual double f_grad(Numer::Constvec& beta, Numer::Refvec grad) override {
         Eigen::VectorXd eta = m_eta_fixed + m_X * beta;
-        double neg_ll = 0.0;
-        Eigen::VectorXd diff(m_n);
-        
-        for (int i = 0; i < m_n; ++i) {
-            double ei = eta[i];
-            double prob = plogis_manual(ei);
-            double wi = m_use_weights ? m_weights[i] : 1.0;
-            neg_ll += wi * (log1pexp_stable(ei) - m_y[i] * ei);
-            diff[i] = wi * (prob - m_y[i]);
+        Eigen::ArrayXd mu = plogis_array_safe(eta.array());
+        Eigen::ArrayXd neg_ll_terms = log1pexp_array_safe(eta.array()) - m_y.array() * eta.array();
+        Eigen::VectorXd diff = (mu - m_y.array()).matrix();
+        if (m_use_weights) {
+            neg_ll_terms *= m_weights.array();
+            diff.array() *= m_weights.array();
         }
+        const double neg_ll = neg_ll_terms.sum();
         grad.noalias() = m_X.transpose() * diff;
         return neg_ll;
     }
 };
+
+inline bool fit_logistic_counted_irls(const Eigen::Ref<const Eigen::MatrixXd>& X,
+                                      const Eigen::Ref<const Eigen::VectorXd>& y,
+                                      const Eigen::Ref<const Eigen::VectorXd>& counts,
+                                      Rcpp::Nullable<Rcpp::NumericVector> warm_start_beta,
+                                      Eigen::VectorXd& beta,
+                                      int maxit = 100,
+                                      double tol = 1e-8) {
+    const int n = X.rows();
+    const int p = X.cols();
+    beta = Eigen::VectorXd::Zero(p);
+    if (warm_start_beta.isNotNull()) {
+        beta = as<Eigen::VectorXd>(Rcpp::NumericVector(warm_start_beta));
+        if (beta.size() != p) stop("warm_start_beta must have length equal to ncol(X)");
+    }
+
+    Eigen::VectorXd score(p);
+    Eigen::MatrixXd XtWX(p, p);
+    Eigen::VectorXd eta(n);
+    Eigen::VectorXd mu(n);
+    Eigen::VectorXd w(n);
+    Eigen::VectorXd diff(n);
+
+    for (int iter = 0; iter < maxit; ++iter) {
+        eta.noalias() = X * beta;
+        mu = plogis_array_safe(eta.array()).matrix();
+        diff.array() = counts.array() * (y.array() - mu.array());
+        w.array() = counts.array() * (mu.array() * (1.0 - mu.array())).max(1e-10);
+        score.noalias() = X.transpose() * diff;
+        XtWX = weighted_crossprod(X, w);
+
+        if (score.norm() < tol) return beta.allFinite();
+
+        Eigen::LDLT<Eigen::MatrixXd> ldlt(XtWX);
+        if (ldlt.info() != Eigen::Success) return false;
+        Eigen::VectorXd delta = ldlt.solve(score);
+        if (!delta.allFinite()) return false;
+
+        beta += delta;
+        if (delta.norm() < tol) return beta.allFinite();
+    }
+
+    return false;
+}
+
+inline Rcpp::NumericVector numeric_vector_from_eigen(const Eigen::VectorXd& x) {
+    Rcpp::NumericVector out(x.size());
+    for (int i = 0; i < x.size(); ++i) out[i] = x[i];
+    return out;
+}
+
+inline bool fit_logistic_counted_active_irls(const Eigen::Ref<const Eigen::MatrixXd>& X,
+                                             const Eigen::Ref<const Eigen::VectorXd>& y,
+                                             const Eigen::Ref<const Eigen::VectorXd>& counts,
+                                             const std::vector<int>& active_rows,
+                                             const Eigen::VectorXd& start_beta,
+                                             Eigen::VectorXd& beta,
+                                             int maxit = 100,
+                                             double tol = 1e-8) {
+    const int p = X.cols();
+    beta = start_beta;
+    if (beta.size() != p || !beta.allFinite()) beta = Eigen::VectorXd::Zero(p);
+
+    Eigen::VectorXd score(p);
+    Eigen::MatrixXd XtWX(p, p);
+    bool converged = false;
+
+    for (int iter = 0; iter < maxit; ++iter) {
+        score.setZero();
+        XtWX.setZero();
+
+        for (const int row : active_rows) {
+            const double ci = counts[row];
+            if (ci <= 0.0) continue;
+            const double eta = X.row(row).dot(beta);
+            const double mu = plogis_manual(eta);
+            const double diff = ci * (y[row] - mu);
+            const double wi = ci * std::max(mu * (1.0 - mu), 1e-10);
+
+            score.noalias() += X.row(row).transpose() * diff;
+            XtWX.selfadjointView<Eigen::Upper>().rankUpdate(X.row(row).transpose(), wi);
+        }
+        XtWX.triangularView<Eigen::Lower>() = XtWX.transpose();
+
+        if (score.norm() < tol) {
+            converged = beta.allFinite();
+            break;
+        }
+
+        Eigen::LDLT<Eigen::MatrixXd> ldlt(XtWX);
+        if (ldlt.info() != Eigen::Success) {
+            for (int attempt = 0; attempt < 4 && ldlt.info() != Eigen::Success; ++attempt) {
+                Eigen::MatrixXd jittered = XtWX;
+                jittered.diagonal().array() += std::pow(10.0, -8 + attempt);
+                ldlt.compute(jittered);
+            }
+            if (ldlt.info() != Eigen::Success) break;
+        }
+        Eigen::VectorXd delta = ldlt.solve(score);
+        if (!delta.allFinite()) break;
+
+        beta += delta;
+        if (delta.norm() < tol) {
+            converged = beta.allFinite();
+            break;
+        }
+    }
+
+    if (converged && beta.allFinite()) return true;
+
+    ModelResult lbfgs_res = fast_logistic_regression_internal(
+        X, y, counts, numeric_vector_from_eigen(beta), false, 200, tol,
+        R_NilValue, R_NilValue, "lbfgs", R_NilValue, R_NilValue, true);
+    if (lbfgs_res.converged && lbfgs_res.b.allFinite()) {
+        beta = lbfgs_res.b;
+        return true;
+    }
+    return false;
+}
+
+// A (quasi-)separated fold has no real MLE: the log-likelihood keeps improving as some
+// coefficient runs off to +-Inf, so IRLS "converges" (score norm < tol) at an essentially
+// arbitrary point on that ridge that depends on the starting value. The batch CV/bootstrap
+// functions below chain each fold's fit into the next fold's starting point for speed, so an
+// undetected separated fold doesn't just report a locally-arbitrary answer, it also pushes every
+// subsequent fold's starting point further out, compounding across folds. A fitted linear
+// predictor this large (predicted probability within ~1e-7 of 0 or 1) is itself the signature of
+// separation for any dataset whose genuinely-identified coefficients are of reasonable magnitude
+// -- callers should treat exceeding this the same as non-convergence.
+inline double active_rows_max_abs_eta(const Eigen::Ref<const Eigen::MatrixXd>& X,
+                                      const std::vector<int>& active_rows,
+                                      const Eigen::VectorXd& beta) {
+    double max_abs_eta = 0.0;
+    for (const int row : active_rows) {
+        const double eta = std::abs(X.row(row).dot(beta));
+        if (eta > max_abs_eta) max_abs_eta = eta;
+    }
+    return max_abs_eta;
+}
 
 } // namespace
 
@@ -166,8 +300,7 @@ ModelResult fast_logistic_regression_internal(const Eigen::Ref<const Eigen::Matr
         eta.noalias() = eta_fixed;
         eta.noalias() += X_free * beta_free;
 
-        // Fast vectorized plogis
-        mu.array() = 1.0 / (1.0 + (-eta.array()).exp());
+        mu = plogis_array_safe(eta.array()).matrix();
 
         if (iter == 0 && warm_start_weights.isNotNull()) {
             Eigen::VectorXd ww = as<Eigen::VectorXd>(warm_start_weights);
@@ -210,13 +343,10 @@ ModelResult fast_logistic_regression_internal(const Eigen::Ref<const Eigen::Matr
     if (!estimate_only) {
         res.mu = mu;
         res.XtWX = expand_free_covariance(p, fixed_spec, XtWX, false);
-        double nl = 0.0;
         Eigen::VectorXd final_eta = eta_fixed + X_free * beta_free;
-        for (int i = 0; i < n; ++i) {
-            double wi = use_weights ? weights[i] : 1.0;
-            nl += wi * (log1pexp_stable(final_eta[i]) - y[i] * final_eta[i]);
-        }
-        res.neg_ll = nl;
+        Eigen::ArrayXd neg_ll_terms = log1pexp_array_safe(final_eta.array()) - y.array() * final_eta.array();
+        if (use_weights) neg_ll_terms *= weights.array();
+        res.neg_ll = neg_ll_terms.sum();
         Eigen::VectorXd final_diff = y - mu;
         if (use_weights) final_diff.array() *= weights.array();
         res.score = X.transpose() * final_diff;
@@ -238,7 +368,7 @@ Eigen::VectorXd get_logistic_regression_score_cpp(SEXP X_sexp, SEXP y_sexp, SEXP
     const int n = X.rows();
     Eigen::VectorXd eta = X * beta;
     Eigen::VectorXd mu(n);
-    mu.array() = 1.0 / (1.0 + (-eta.array()).exp());
+    mu = plogis_array_safe(eta.array()).matrix();
     return X.transpose() * (y - mu);
 }
 
@@ -252,7 +382,7 @@ Eigen::MatrixXd get_logistic_regression_hessian_cpp(SEXP X_sexp, SEXP beta_sexp)
     const int n = X.rows();
     Eigen::VectorXd eta = X * beta;
     Eigen::VectorXd w(n);
-    w.array() = 1.0 / (1.0 + (-eta.array()).exp()); // mu
+    w = plogis_array_safe(eta.array()).matrix();
     w.array() = w.array() * (1.0 - w.array());
     return -weighted_crossprod(X, w);
 }
@@ -271,7 +401,7 @@ Eigen::VectorXd get_logistic_regression_weighted_score_cpp(SEXP X_sexp, SEXP y_s
     const int n = X.rows();
     Eigen::VectorXd eta = X * beta;
     Eigen::VectorXd mu(n);
-    mu.array() = 1.0 / (1.0 + (-eta.array()).exp());
+    mu = plogis_array_safe(eta.array()).matrix();
     Eigen::VectorXd diff = y - mu;
     diff.array() *= weights.array();
     return X.transpose() * diff;
@@ -289,7 +419,7 @@ Eigen::MatrixXd get_logistic_regression_weighted_hessian_cpp(SEXP X_sexp, SEXP w
     const int n = X.rows();
     Eigen::VectorXd eta = X * beta;
     Eigen::VectorXd w(n);
-    w.array() = 1.0 / (1.0 + (-eta.array()).exp()); // mu
+    w = plogis_array_safe(eta.array()).matrix();
     w.array() = w.array() * (1.0 - w.array()) * weights.array();
     return -weighted_crossprod(X, w);
 }
@@ -406,5 +536,233 @@ List fast_logistic_regression_with_var_cpp(SEXP X_sexp, SEXP y_sexp, int j = 2,
         Named("loglik") = R_finite(res.neg_ll) ? -res.neg_ll : NA_REAL,
         Named("converged") = res.converged,
         Named("iterations") = res.iterations
+    );
+}
+
+// [[Rcpp::export]]
+Rcpp::List fast_default_incidence_cv_run_cpp(SEXP X_obs_sexp,
+                                             SEXP y_full_sexp,
+                                             SEXP X_tx0_sexp,
+                                             SEXP X_tx1_sexp,
+                                             SEXP treatment_sexp,
+                                             SEXP censored_sexp,
+                                             SEXP boot_idx_sexp,
+                                             SEXP begin_cutoffs_sexp,
+                                             SEXP end_cutoffs_sexp,
+                                             Rcpp::Nullable<Rcpp::NumericVector> warm_start_beta = R_NilValue,
+                                             bool y_higher_is_better = true) {
+    NumericMatrix X_obs_r(X_obs_sexp);
+    NumericVector y_full_r(y_full_sexp);
+    NumericMatrix X_tx0_r(X_tx0_sexp);
+    NumericMatrix X_tx1_r(X_tx1_sexp);
+    NumericVector treatment_r(treatment_sexp);
+    NumericVector censored_r(censored_sexp);
+    IntegerVector boot_idx_r(boot_idx_sexp);
+    IntegerVector begin_r(begin_cutoffs_sexp);
+    IntegerVector end_r(end_cutoffs_sexp);
+
+    Eigen::Map<const Eigen::MatrixXd> X_obs(X_obs_r.begin(), X_obs_r.nrow(), X_obs_r.ncol());
+    Eigen::Map<const Eigen::VectorXd> y_full(y_full_r.begin(), y_full_r.size());
+    Eigen::Map<const Eigen::MatrixXd> X_tx0(X_tx0_r.begin(), X_tx0_r.nrow(), X_tx0_r.ncol());
+    Eigen::Map<const Eigen::MatrixXd> X_tx1(X_tx1_r.begin(), X_tx1_r.nrow(), X_tx1_r.ncol());
+
+    const int n_full = X_obs.rows();
+    const int p = X_obs.cols();
+    const int n_out = boot_idx_r.size();
+    const int n_folds = begin_r.size();
+    if (end_r.size() != n_folds) stop("begin_cutoffs and end_cutoffs must have the same length");
+
+    NumericVector est_true(n_out, NA_REAL);
+    NumericVector est_counterfactual(n_out, NA_REAL);
+    NumericVector given_tx(n_out, NA_REAL);
+    NumericVector rec_tx(n_out, NA_REAL);
+    NumericVector real_y(n_out, NA_REAL);
+    NumericVector censored(n_out, NA_REAL);
+
+    std::vector<int> rows(n_out);
+    Eigen::VectorXd full_counts = Eigen::VectorXd::Zero(n_full);
+    for (int pos = 0; pos < n_out; ++pos) {
+        const int row = boot_idx_r[pos] - 1;
+        if (row < 0 || row >= n_full) return List::create(Named("ok") = false);
+        rows[pos] = row;
+        full_counts[row] += 1.0;
+    }
+
+    Eigen::VectorXd fold_start = Eigen::VectorXd::Zero(p);
+    if (warm_start_beta.isNotNull()) {
+        fold_start = as<Eigen::VectorXd>(Rcpp::NumericVector(warm_start_beta));
+        if (fold_start.size() != p) stop("warm_start_beta must have length equal to ncol(X)");
+    }
+
+    for (int fold = 0; fold < n_folds; ++fold) {
+        const int begin = begin_r[fold] - 1;
+        const int end = end_r[fold] - 1;
+        if (begin < 0 || end < begin || end >= n_out) return List::create(Named("ok") = false);
+
+        Eigen::VectorXd counts = full_counts;
+        for (int pos = begin; pos <= end; ++pos) counts[rows[pos]] -= 1.0;
+
+        std::vector<int> active_rows;
+        active_rows.reserve(n_full);
+        for (int row = 0; row < n_full; ++row) {
+            if (counts[row] > 0.0) active_rows.push_back(row);
+        }
+
+        Eigen::VectorXd beta;
+        const bool converged = fit_logistic_counted_active_irls(
+            X_obs, y_full, counts, active_rows, fold_start, beta, 100, 1e-8);
+        if (!converged || !beta.allFinite()) return List::create(Named("ok") = false);
+        if (active_rows_max_abs_eta(X_obs, active_rows, beta) > 30.0) return List::create(Named("ok") = false);
+        //fold_start is intentionally NOT updated to beta here: every fold starts from the same
+        //fixed full-data warm start (see active_rows_max_abs_eta's comment above) so one fold's
+        //fit can never drift into the next fold's starting point and compound across folds.
+
+        for (int pos = begin; pos <= end; ++pos) {
+            const int row = rows[pos];
+            const double yhat0 = X_tx0.row(row).dot(beta);
+            const double yhat1 = X_tx1.row(row).dot(beta);
+            const double tx = treatment_r[row];
+            const double et = yhat0 + tx * (yhat1 - yhat0);
+            const double ec = yhat0 + yhat1 - et;
+            const bool optimal = y_higher_is_better ? (et > ec) : (et < ec);
+
+            est_true[pos] = et;
+            est_counterfactual[pos] = ec;
+            given_tx[pos] = tx;
+            rec_tx[pos] = tx * optimal + (1.0 - tx) * (1.0 - optimal);
+            real_y[pos] = y_full[row];
+            censored[pos] = censored_r[row];
+        }
+    }
+
+    return List::create(
+        Named("ok") = true,
+        Named("raw_results") = List::create(
+            Named("est_true") = est_true,
+            Named("est_counterfactual") = est_counterfactual,
+            Named("given_tx") = given_tx,
+            Named("rec_tx") = rec_tx,
+            Named("real_y") = real_y,
+            Named("censored") = censored
+        )
+    );
+}
+
+// [[Rcpp::export]]
+Rcpp::List fast_default_incidence_bootstrap_q_cpp(SEXP X_obs_sexp,
+                                                  SEXP y_full_sexp,
+                                                  SEXP X_tx0_sexp,
+                                                  SEXP X_tx1_sexp,
+                                                  SEXP treatment_sexp,
+                                                  int B,
+                                                  SEXP begin_cutoffs_sexp,
+                                                  SEXP end_cutoffs_sexp,
+                                                  Rcpp::Nullable<Rcpp::NumericVector> warm_start_beta = R_NilValue,
+                                                  bool y_higher_is_better = true,
+                                                  std::string incidence_metric = "odds_ratio") {
+    Rcpp::RNGScope rng_scope;
+    NumericMatrix X_obs_r(X_obs_sexp);
+    NumericVector y_full_r(y_full_sexp);
+    NumericMatrix X_tx0_r(X_tx0_sexp);
+    NumericMatrix X_tx1_r(X_tx1_sexp);
+    NumericVector treatment_r(treatment_sexp);
+    IntegerVector begin_r(begin_cutoffs_sexp);
+    IntegerVector end_r(end_cutoffs_sexp);
+
+    Eigen::Map<const Eigen::MatrixXd> X_obs(X_obs_r.begin(), X_obs_r.nrow(), X_obs_r.ncol());
+    Eigen::Map<const Eigen::VectorXd> y_full(y_full_r.begin(), y_full_r.size());
+    Eigen::Map<const Eigen::MatrixXd> X_tx0(X_tx0_r.begin(), X_tx0_r.nrow(), X_tx0_r.ncol());
+    Eigen::Map<const Eigen::MatrixXd> X_tx1(X_tx1_r.begin(), X_tx1_r.nrow(), X_tx1_r.ncol());
+
+    const int n_full = X_obs.rows();
+    const int p = X_obs.cols();
+    const int n_out = (end_r.size() > 0) ? end_r[end_r.size() - 1] : 0;
+    const int n_folds = begin_r.size();
+    if (B < 0 || n_out <= 0 || end_r.size() != n_folds) stop("invalid bootstrap q inputs");
+
+    Eigen::VectorXd global_start = Eigen::VectorXd::Zero(p);
+    if (warm_start_beta.isNotNull()) {
+        global_start = as<Eigen::VectorXd>(Rcpp::NumericVector(warm_start_beta));
+        if (global_start.size() != p) stop("warm_start_beta must have length equal to ncol(X)");
+    }
+
+    const int metric_code = incidence_metric == "probability_difference" ? 0 :
+        (incidence_metric == "risk_ratio" ? 1 : 2);
+    NumericVector q_adv(B, NA_REAL), q_avg(B, NA_REAL), q_best(B, NA_REAL);
+    int num_bad = 0;
+    std::vector<int> rows(n_out);
+    std::vector<double> real_y(n_out), given_tx(n_out), rec_tx(n_out);
+
+    for (int b = 0; b < B; ++b) {
+        Eigen::VectorXd full_counts = Eigen::VectorXd::Zero(n_full);
+        for (int pos = 0; pos < n_out; ++pos) {
+            const int row = std::min(n_full - 1, static_cast<int>(std::floor(R::unif_rand() * n_full)));
+            rows[pos] = row;
+            full_counts[row] += 1.0;
+        }
+
+        Eigen::VectorXd fold_start = global_start;
+        bool ok = true;
+        for (int fold = 0; fold < n_folds && ok; ++fold) {
+            const int begin = begin_r[fold] - 1;
+            const int end = end_r[fold] - 1;
+            if (begin < 0 || end < begin || end >= n_out) { ok = false; break; }
+
+            Eigen::VectorXd counts = full_counts;
+            for (int pos = begin; pos <= end; ++pos) counts[rows[pos]] -= 1.0;
+
+            std::vector<int> active_rows;
+            active_rows.reserve(n_full);
+            for (int row = 0; row < n_full; ++row) {
+                if (counts[row] > 0.0) active_rows.push_back(row);
+            }
+
+            Eigen::VectorXd beta;
+            ok = fit_logistic_counted_active_irls(
+                X_obs, y_full, counts, active_rows, fold_start, beta, 100, 1e-8);
+            if (!ok || !beta.allFinite()) break;
+            if (active_rows_max_abs_eta(X_obs, active_rows, beta) > 30.0) { ok = false; break; }
+            //fold_start intentionally not updated -- see the matching comment in
+            //fast_default_incidence_cv_run_cpp() above
+
+            for (int pos = begin; pos <= end; ++pos) {
+                const int row = rows[pos];
+                const double yhat0 = X_tx0.row(row).dot(beta);
+                const double yhat1 = X_tx1.row(row).dot(beta);
+                const double tx = treatment_r[row];
+                const double et = yhat0 + tx * (yhat1 - yhat0);
+                const double ec = yhat0 + yhat1 - et;
+                const bool optimal = y_higher_is_better ? (et > ec) : (et < ec);
+                real_y[pos] = y_full[row];
+                given_tx[pos] = tx;
+                rec_tx[pos] = tx * optimal + (1.0 - tx) * (1.0 - optimal);
+            }
+        }
+
+        DefaultQScores q;
+        if (ok) {
+            if (metric_code == 0) {
+                q = default_continuous_or_probability_q_scores_cpp(
+                    real_y.data(), given_tx.data(), rec_tx.data(), n_out, y_higher_is_better);
+            } else {
+                q = default_incidence_ratio_q_scores_cpp(
+                    real_y.data(), given_tx.data(), rec_tx.data(), n_out,
+                    y_higher_is_better, metric_code);
+            }
+            q_adv[b] = q.adversarial;
+            q_avg[b] = q.average;
+            q_best[b] = q.best;
+        }
+        if (!ok || q.is_bad) ++num_bad;
+    }
+
+    return List::create(
+        Named("ok") = true,
+        Named("q_scores") = List::create(
+            Named("adversarial") = q_adv,
+            Named("average") = q_avg,
+            Named("best") = q_best
+        ),
+        Named("num_bad") = num_bad
     );
 }

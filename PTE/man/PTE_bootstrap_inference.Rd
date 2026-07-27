@@ -19,7 +19,7 @@ PTE_bootstrap_inference(
   full_verbose = FALSE,
   H_0_mu_equals = NULL,
   pct_leave_out = 0.1,
-  m_prop = 1,
+  m_pow_of_n = 0.75,
   B = 3000,
   alpha = 0.05,
   run_bca_bootstrap = FALSE,
@@ -135,9 +135,18 @@ than the business-as-usual / naive allocation procedure?}
 \item{pct_leave_out}{In the cross-validation, the proportion of the original dataset left out to estimate out-of-sample metrics. The default is 0.1
 which corresponds to 10-fold cross validation.}
 
-\item{m_prop}{Within each bootstrap sample, the proportion of the total number of rows of \code{X} to sample without replacement. \code{m_prop < 1} ensures
-the number of rows sampled is less than \code{n} which fixes the consistency of the bootstrap estimator of a non-smooth functional. The default 
-is 1 since non-smoothness may not be a common issue.}
+\item{m_pow_of_n}{Within each bootstrap sample, the exponent \eqn{\gamma}{gamma} used to set the resample size (sampled with replacement)
+to \eqn{m = \lfloor n^{\gamma} \rfloor}{m = round(n^gamma)}, implementing the "m-out-of-n bootstrap." Politis, Romano
+& Wolf (\emph{Subsampling}, 1999) show that bootstrap consistency for non-smooth (non-regular) functionals -- as arises
+here because the treatment recommendation is a hard threshold on the estimated treatment effect -- requires
+\eqn{m \to \infty}{m -> infinity} and \eqn{m / n \to 0}{m / n -> 0}, i.e. \eqn{\gamma < 1}{gamma < 1}; \eqn{\gamma = 1}{gamma = 1}
+recovers the classical (and here potentially inconsistent) \eqn{n}-out-of-\eqn{n} bootstrap. The default
+\eqn{\gamma = 0.75}{gamma = 0.75} follows the Politis-Romano-Wolf recommended rate as a practical compromise between
+bias (\eqn{\gamma}{gamma} too close to 1, reintroducing the non-regularity) and excess bootstrap Monte Carlo variance
+(\eqn{\gamma}{gamma} too small); see their book for the data-driven "minimum volatility" method for calibrating
+\eqn{\gamma}{gamma} to a specific dataset. When \eqn{\gamma < 1}{gamma < 1}, the reported confidence intervals are
+rescaled by \eqn{\sqrt{m / n}}{sqrt(m / n)} as required by m-out-of-n bootstrap theory; this rescaling is a no-op when
+\eqn{\gamma = 1}{gamma = 1} (i.e. \eqn{m = n}{m = n}).}
 
 \item{B}{The number of bootstrap samples to take. We recommend making this as high as you can tolerate given speed considerations.
 The default is 3000.}
@@ -165,43 +174,34 @@ confidence intervals are provided using the basic, percentile methods by default
 if desired.
 }
 \examples{
-\dontrun{
-	library(PTE)
-	B = 1000 #lower this for quicker demos
+library(PTE)
 
-	##response: continuous
-	data(continuous_example)
-	X = continuous_example$X
- y = continuous_example$y
-	pte_results = PTE_bootstrap_inference(X, y, regression_type = "continuous", B = B)
-	pte_results
+##B and num_cores are kept small here so the examples run quickly; in practice make B as
+##large as you can tolerate and omit num_cores to use all-but-one core.
 
-	##response: incidence
-	data(continuous_example)
-	X = continuous_example$X
- y = continuous_example$y
-	y = ifelse(y > quantile(y, 0.75), 1, 0) #force incidence and pretend y came to you this way
-#there are three ways to assess incidence effects below: 
-	#	odds ratio, risk ratio and probability difference 
-	pte_results = PTE_bootstrap_inference(X, y, regression_type = "incidence", B = B)
-	pte_results
-	pte_results = PTE_bootstrap_inference(X, y, regression_type = "incidence", B = B, 
-                                      incidence_metric = "risk_ratio")
-	pte_results
-	pte_results = PTE_bootstrap_inference(X, y, regression_type = "incidence", B = B, 
-	                                      incidence_metric = "probability_difference")
-	pte_results
+##response: continuous
+data(continuous_example)
+X = continuous_example$X
+y = continuous_example$y
+pte_results = PTE_bootstrap_inference(X, y, regression_type = "continuous", B = 5, num_cores = 1)
+pte_results
 
-	##response: survival
-	data(survival_example)
-	X = survival_example$X
-	y = survival_example$y
- censored = survival_example$censored
-	pte_results = PTE_bootstrap_inference(X, y, censored = censored, 
-    	regression_type = "survival", 
-        B = 1000)
-	pte_results
-}
+##response: incidence. incidence_metric also accepts "risk_ratio" and "probability_difference"
+##(see the incidence_metric parameter above); odds_ratio is illustrated here for speed.
+##force incidence and pretend y came to you this way
+y_incidence = ifelse(y > quantile(y, 0.75), 1, 0)
+pte_results = PTE_bootstrap_inference(X, y_incidence,
+    regression_type = "incidence",
+    B = 5, num_cores = 1)
+pte_results
+
+##response: survival
+data(survival_example)
+pte_results = PTE_bootstrap_inference(survival_example$X, survival_example$y,
+    censored = survival_example$censored,
+    regression_type = "survival",
+    B = 5, num_cores = 1)
+pte_results
 }
 \author{
 Adam Kapelner

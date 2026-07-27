@@ -81,3 +81,23 @@ test_that("mismatched censored length errors", {
 		"censored"
 	)
 })
+
+test_that("logical treatment column errors (class check requires numeric/integer)", {
+	X_logical_treatment = data.frame(treatment = rep(c(FALSE, TRUE), each = 5), x = rnorm(10))
+	expect_error(
+		PTE_bootstrap_inference(X_logical_treatment, base_y),
+		"treatment"
+	)
+})
+
+test_that("an integer-typed treatment column is accepted", {
+	set.seed(1984)
+	n = 80
+	x = sort(rnorm(n))
+	X_int_treatment = data.frame(treatment = sample(rep(0L:1L, each = n / 2)), x = x)
+	y_int_treatment = 1 - x + X_int_treatment$treatment * (sqrt(2 * pi) * x) + rnorm(n)
+	expect_no_error(
+		res <- PTE_bootstrap_inference(X_int_treatment, y_int_treatment, B = 5, num_cores = 1)
+	)
+	expect_s3_class(res, "PTE_bootstrap_results")
+})

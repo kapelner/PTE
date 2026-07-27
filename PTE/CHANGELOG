@@ -1,11 +1,14 @@
 version 2.0
 
-* modernized the package using Rcpp and ggplot2 
-* Package was profiles and repetitive overhead eliminated
-* comprehensive test suite written
-* logistic regression estimation and weibull survival estimation were coded in C++ using RcppEigen for vast speedups
+* Modernized the package using Rcpp and ggplot2 
+* Package was profiled and repetitive overhead eliminated
+* Comprehensive test suite written
+* Arguments are now checked in the forward-facing API
+* Logistic regression estimation and weibull survival estimation were coded in C++ using RcppEigen for vast speedups
 * Parallelization improved using mirai (for windows) and forking (for *nix)
 * Compile flags optimize for user's specific hardware
+* Our estimands are policy values which are nonsmooth and hence the regular n-out-of-n bootstrap is inconsistent. We now default to m-out-of-n bootstrap which fixes the problem. We have also corrected the rate adjustment bug using the factor sqrt(m/n). We have used the recommended Politis, Romano & Wolf, Subsampling (1999) default of m = n^(3/4).
+* To select m, Politis, Romano & Wolf (1999) and Bickel & Sakov (2008) recommend a "minimum-volatility grid method" which uses a grid of m and checking which m is stable. Now that we have the speedups, this implementation became practical and it is now found in the select_optimal_m_prop() function which should be run before the bootstrap inference.
 * fixed a bug in the difference_function branch
 * fixed rendering issues in the documentation
 

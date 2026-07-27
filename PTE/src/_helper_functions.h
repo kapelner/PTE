@@ -21,6 +21,7 @@
 #include <cmath>
 #include <string>
 #include <type_traits>
+#include <algorithm>
 #include <Rmath.h>
 
 using Eigen::VectorXd;
@@ -122,21 +123,16 @@ inline Eigen::MatrixXd weighted_crossprod(const Eigen::MatrixBase<Derived>& X,
     if (Derived::IsRowMajor) {
         Eigen::MatrixXd res = Eigen::MatrixXd::Zero(p, p);
         for (int i = 0; i < n; ++i) {
-            double wi = w(i);
-            if (wi == 0.0) continue;
-            for (int j = 0; j < p; ++j) {
-                double xij = X(i, j);
-                double w_xij = wi * xij;
-                for (int k = j; k < p; ++k) {
-                    res(j, k) += w_xij * X(i, k);
-                }
+            const double wi = w(i);
+            if (wi != 0.0) {
+                res.selfadjointView<Eigen::Upper>().rankUpdate(X.row(i).transpose(), wi);
             }
         }
         res.triangularView<Eigen::Lower>() = res.transpose();
         return res;
     }
 
-    // col-major: column-pair DSYR — upper triangle only, halves FLOPs vs full GEMM
+    // col-major: column-pair DSYR -- upper triangle only, halves FLOPs vs full GEMM
     Eigen::MatrixXd res(p, p);
     Eigen::VectorXd wXj(n);
     for (int j = 0; j < p; ++j) {
@@ -162,14 +158,9 @@ inline Eigen::MatrixXd weighted_crossprod(const Eigen::Map<const Eigen::Matrix<d
 
     Eigen::MatrixXd res = Eigen::MatrixXd::Zero(p, p);
     for (int i = 0; i < n; ++i) {
-        double wi = w(i);
-        if (wi == 0.0) continue;
-        for (int j = 0; j < p; ++j) {
-            double xij = X(i, j);
-            double w_xij = wi * xij;
-            for (int k = j; k < p; ++k) {
-                res(j, k) += w_xij * X(i, k);
-            }
+        const double wi = w(i);
+        if (wi != 0.0) {
+            res.selfadjointView<Eigen::Upper>().rankUpdate(X.row(i).transpose(), wi);
         }
     }
     res.triangularView<Eigen::Lower>() = res.transpose();
@@ -186,18 +177,6 @@ inline Eigen::VectorXd weighted_crossprod_rhs(const Eigen::MatrixBase<Derived>& 
         Rcpp::stop("weighted_crossprod_rhs: vectors have incompatible dimensions");
     }
 
-    if (Derived::IsRowMajor) {
-        Eigen::VectorXd res = Eigen::VectorXd::Zero(p);
-        for (int i = 0; i < n; ++i) {
-            double wi_yi = w(i) * y(i);
-            if (wi_yi == 0.0) continue;
-            for (int j = 0; j < p; ++j) {
-                res(j) += X(i, j) * wi_yi;
-            }
-        }
-        return res;
-    }
-
     return X.transpose() * w.cwiseProduct(y);
 }
 
@@ -212,15 +191,262 @@ inline Eigen::VectorXd weighted_crossprod_rhs(const Eigen::Map<const Eigen::Matr
         Rcpp::stop("weighted_crossprod_rhs: vectors have incompatible dimensions");
     }
 
-    Eigen::VectorXd res = Eigen::VectorXd::Zero(p);
-    for (int i = 0; i < n; ++i) {
-        double wi_yi = w(i) * y(i);
-        if (wi_yi == 0.0) continue;
-        for (int j = 0; j < p; ++j) {
-            res(j) += X(i, j) * wi_yi;
+    return X.transpose() * w.cwiseProduct(y);
+}
+
+struct DefaultQScores {
+    double adversarial;
+    double average;
+    double best;
+    bool is_bad;
+
+    DefaultQScores() :
+        adversarial(NA_REAL), average(NA_REAL), best(NA_REAL), is_bad(true) {}
+};
+
+inline double mean_from_sum_count_cpp(double sum_x, int n_x) {
+    return sum_x / static_cast<double>(n_x);
+}
+
+inline double odds_cpp(double p) {
+    return p / (1.0 - p);
+}
+
+inline double km_median_for_group_cpp_internal(std::vector<double>& y, std::vector<int>& dead) {
+    const int n = static_cast<int>(y.size());
+    if (n == 0) return NA_REAL;
+
+    std::vector<int> ord(n);
+    for (int i = 0; i < n; ++i) ord[i] = i;
+    std::sort(ord.begin(), ord.end(), [&](int a, int b){ return y[a] < y[b]; });
+
+    double survival_prob = 1.0;
+    std::vector<double> event_times;
+    std::vector<double> survival_probs;
+
+    for (int i = 0; i < n; ) {
+        const double current_time = y[ord[i]];
+        const int at_risk = n - i;
+        int events = 0;
+        int j = i;
+        while (j < n && y[ord[j]] == current_time) {
+            if (dead[ord[j]] == 1) ++events;
+            ++j;
+        }
+        if (events > 0) {
+            survival_prob *= 1.0 - static_cast<double>(events) / static_cast<double>(at_risk);
+            event_times.push_back(current_time);
+            survival_probs.push_back(survival_prob);
+        }
+        i = j;
+    }
+
+    const double tolerance = 1.4901161193847656e-08;
+    for (size_t i = 0; i < survival_probs.size(); ++i) {
+        if (survival_probs[i] < 0.5 + tolerance) {
+            if (std::abs(survival_probs[i] - 0.5) < tolerance) {
+                for (size_t k = i + 1; k < survival_probs.size(); ++k) {
+                    if (survival_probs[k] < survival_probs[i]) {
+                        return (event_times[i] + event_times[k]) / 2.0;
+                    }
+                }
+            }
+            return event_times[i];
         }
     }
-    return res;
+    return R_PosInf;
+}
+
+inline double km_median_diff_from_groups(std::vector<double>& y1,
+                                         std::vector<int>& dead1,
+                                         std::vector<double>& y0,
+                                         std::vector<int>& dead0) {
+    const double stat1 = km_median_for_group_cpp_internal(y1, dead1);
+    const double stat0 = km_median_for_group_cpp_internal(y0, dead0);
+    if (!R_FINITE(stat1) || !R_FINITE(stat0)) return NA_REAL;
+    return stat1 - stat0;
+}
+
+inline DefaultQScores default_continuous_or_probability_q_scores_cpp(
+        const double* y,
+        const double* given_tx,
+        const double* rec_tx,
+        int n,
+        bool y_higher_is_better) {
+    DefaultQScores out;
+    int n00 = 0, n01 = 0, n10 = 0, n11 = 0, n_all = 0;
+    double s00 = 0.0, s01 = 0.0, s10 = 0.0, s11 = 0.0, s_all = 0.0;
+
+    for (int i = 0; i < n; ++i) {
+        if (!R_FINITE(y[i])) continue;
+        ++n_all;
+        s_all += y[i];
+        if (!R_FINITE(given_tx[i]) || !R_FINITE(rec_tx[i])) continue;
+        if (given_tx[i] == 0.0 && rec_tx[i] == 0.0) { ++n00; s00 += y[i]; }
+        else if (given_tx[i] == 0.0 && rec_tx[i] == 1.0) { ++n01; s01 += y[i]; }
+        else if (given_tx[i] == 1.0 && rec_tx[i] == 0.0) { ++n10; s10 += y[i]; }
+        else if (given_tx[i] == 1.0 && rec_tx[i] == 1.0) { ++n11; s11 += y[i]; }
+    }
+
+    const double m00 = mean_from_sum_count_cpp(s00, n00);
+    const double m01 = mean_from_sum_count_cpp(s01, n01);
+    const double m10 = mean_from_sum_count_cpp(s10, n10);
+    const double m11 = mean_from_sum_count_cpp(s11, n11);
+    const double m0x = mean_from_sum_count_cpp(s00 + s01, n00 + n01);
+    const double m1x = mean_from_sum_count_cpp(s10 + s11, n10 + n11);
+    const double mx0 = mean_from_sum_count_cpp(s00 + s10, n00 + n10);
+    const double mx1 = mean_from_sum_count_cpp(s01 + s11, n01 + n11);
+    const double mxx = mean_from_sum_count_cpp(s_all, n_all);
+    out.is_bad = std::isnan(m00 + m01 + m10 + m11 + m0x + m1x + mx0 + mx1 + mxx);
+
+    const double avg_rec = mean_from_sum_count_cpp(s00 + s11, n00 + n11);
+    const double avg_non_rec = mean_from_sum_count_cpp(s01 + s10, n01 + n10);
+    const double avg_all = mxx;
+    double avg_best = NA_REAL;
+    if (m0x >= m1x && y_higher_is_better) avg_best = m0x;
+    else if (m0x >= m1x && !y_higher_is_better) avg_best = m1x;
+    else if (m0x < m1x && y_higher_is_better) avg_best = m1x;
+    else if (m0x < m1x && !y_higher_is_better) avg_best = m0x;
+
+    out.adversarial = avg_rec - avg_non_rec;
+    out.average = avg_rec - avg_all;
+    out.best = avg_rec - avg_best;
+    return out;
+}
+
+inline DefaultQScores default_incidence_ratio_q_scores_cpp(
+        const double* y,
+        const double* given_tx,
+        const double* rec_tx,
+        int n,
+        bool y_higher_is_better,
+        int incidence_metric) {
+    DefaultQScores out;
+    int n00 = 0, n01 = 0, n10 = 0, n11 = 0, n_all = 0;
+    double s00 = 0.0, s01 = 0.0, s10 = 0.0, s11 = 0.0, s_all = 0.0;
+
+    for (int i = 0; i < n; ++i) {
+        if (!R_FINITE(y[i])) continue;
+        ++n_all;
+        s_all += y[i];
+        if (!R_FINITE(given_tx[i]) || !R_FINITE(rec_tx[i])) continue;
+        if (given_tx[i] == 0.0 && rec_tx[i] == 0.0) { ++n00; s00 += y[i]; }
+        else if (given_tx[i] == 0.0 && rec_tx[i] == 1.0) { ++n01; s01 += y[i]; }
+        else if (given_tx[i] == 1.0 && rec_tx[i] == 0.0) { ++n10; s10 += y[i]; }
+        else if (given_tx[i] == 1.0 && rec_tx[i] == 1.0) { ++n11; s11 += y[i]; }
+    }
+
+    const double m00 = mean_from_sum_count_cpp(s00, n00);
+    const double m01 = mean_from_sum_count_cpp(s01, n01);
+    const double m10 = mean_from_sum_count_cpp(s10, n10);
+    const double m11 = mean_from_sum_count_cpp(s11, n11);
+    const double p0 = mean_from_sum_count_cpp(s00 + s01, n00 + n01);
+    const double p1 = mean_from_sum_count_cpp(s10 + s11, n10 + n11);
+    const double mx0 = mean_from_sum_count_cpp(s00 + s10, n00 + n10);
+    const double mx1 = mean_from_sum_count_cpp(s01 + s11, n01 + n11);
+    const double p_all = mean_from_sum_count_cpp(s_all, n_all);
+    out.is_bad = std::isnan(m00 + m01 + m10 + m11 + p0 + p1 + mx0 + mx1 + p_all);
+
+    const double p_rec = mean_from_sum_count_cpp(s00 + s11, n00 + n11);
+    const double p_non_rec = mean_from_sum_count_cpp(s01 + s10, n01 + n10);
+    double p_best = NA_REAL;
+    if (p1 >= p0 && y_higher_is_better) p_best = p1;
+    else if (p1 < p0 && y_higher_is_better) p_best = p0;
+    else if (p1 <= p0 && !y_higher_is_better) p_best = p0;
+    else p_best = p1;
+
+    if (incidence_metric == 1) {
+        out.adversarial = p_rec / p_non_rec;
+        out.average = p_rec / p_all;
+        out.best = p_rec / p_best;
+    } else {
+        const double p_rec_odds = odds_cpp(p_rec);
+        out.adversarial = p_rec_odds / odds_cpp(p_non_rec);
+        out.average = p_rec_odds / odds_cpp(p_all);
+        out.best = p_rec_odds / odds_cpp(p_best);
+    }
+    return out;
+}
+
+inline DefaultQScores default_survival_q_scores_cpp(
+        const double* y,
+        const double* dead,
+        const double* given_tx,
+        const double* rec_tx,
+        int n,
+        bool y_higher_is_better) {
+    DefaultQScores out;
+
+    std::vector<double> y_rec, y_non_rec, y_1, y_0;
+    std::vector<int> d_rec, d_non_rec, d_1, d_0;
+    y_rec.reserve(n); y_non_rec.reserve(n); y_1.reserve(n); y_0.reserve(n);
+    d_rec.reserve(n); d_non_rec.reserve(n); d_1.reserve(n); d_0.reserve(n);
+
+    int n00 = 0, n01 = 0, n10 = 0, n11 = 0, n_all = 0;
+    double s00 = 0.0, s01 = 0.0, s10 = 0.0, s11 = 0.0, s_all = 0.0;
+    for (int i = 0; i < n; ++i) {
+        if (R_FINITE(y[i])) {
+            ++n_all;
+            s_all += y[i];
+        }
+        if (!R_FINITE(given_tx[i]) || !R_FINITE(rec_tx[i])) continue;
+
+        const int di = static_cast<int>(dead[i]);
+        if (given_tx[i] == 0.0 && rec_tx[i] == 0.0) {
+            ++n00; s00 += y[i];
+            y_rec.push_back(y[i]); d_rec.push_back(di);
+            y_0.push_back(y[i]); d_0.push_back(di);
+        } else if (given_tx[i] == 0.0 && rec_tx[i] == 1.0) {
+            ++n01; s01 += y[i];
+            y_non_rec.push_back(y[i]); d_non_rec.push_back(di);
+            y_0.push_back(y[i]); d_0.push_back(di);
+        } else if (given_tx[i] == 1.0 && rec_tx[i] == 0.0) {
+            ++n10; s10 += y[i];
+            y_non_rec.push_back(y[i]); d_non_rec.push_back(di);
+            y_1.push_back(y[i]); d_1.push_back(di);
+        } else if (given_tx[i] == 1.0 && rec_tx[i] == 1.0) {
+            ++n11; s11 += y[i];
+            y_rec.push_back(y[i]); d_rec.push_back(di);
+            y_1.push_back(y[i]); d_1.push_back(di);
+        }
+    }
+
+    const double m00 = mean_from_sum_count_cpp(s00, n00);
+    const double m01 = mean_from_sum_count_cpp(s01, n01);
+    const double m10 = mean_from_sum_count_cpp(s10, n10);
+    const double m11 = mean_from_sum_count_cpp(s11, n11);
+    const double m0x = mean_from_sum_count_cpp(s00 + s01, n00 + n01);
+    const double m1x = mean_from_sum_count_cpp(s10 + s11, n10 + n11);
+    const double mx0 = mean_from_sum_count_cpp(s00 + s10, n00 + n10);
+    const double mx1 = mean_from_sum_count_cpp(s01 + s11, n01 + n11);
+    const double mxx = mean_from_sum_count_cpp(s_all, n_all);
+    out.is_bad = std::isnan(m00 + m01 + m10 + m11 + m0x + m1x + mx0 + mx1 + mxx);
+
+    std::vector<double> y_all(y, y + n);
+    std::vector<int> d_all(n);
+    for (int i = 0; i < n; ++i) d_all[i] = static_cast<int>(dead[i]);
+
+    out.adversarial = km_median_diff_from_groups(y_rec, d_rec, y_non_rec, d_non_rec);
+    out.average = km_median_diff_from_groups(y_rec, d_rec, y_all, d_all);
+
+    const double median_diff = km_median_diff_from_groups(y_1, d_1, y_0, d_0);
+    std::vector<double>* y_best = &y_1;
+    std::vector<int>* d_best = &d_1;
+    if (R_FINITE(median_diff) && median_diff == 0.0) {
+        const bool random_bernoulli = R::unif_rand() < 0.5;
+        y_best = random_bernoulli ? &y_0 : &y_1;
+        d_best = random_bernoulli ? &d_0 : &d_1;
+    } else if (R_FINITE(median_diff) && median_diff > 0.0 && y_higher_is_better) {
+        y_best = &y_1; d_best = &d_1;
+    } else if (R_FINITE(median_diff) && median_diff < 0.0 && y_higher_is_better) {
+        y_best = &y_0; d_best = &d_0;
+    } else if (R_FINITE(median_diff) && median_diff > 0.0 && !y_higher_is_better) {
+        y_best = &y_0; d_best = &d_0;
+    } else {
+        y_best = &y_1; d_best = &d_1;
+    }
+    out.best = km_median_diff_from_groups(y_rec, d_rec, *y_best, *d_best);
+    return out;
 }
 
 // Compute X^T X using BLAS DSYRK (half FLOPs vs full DGEMM, BLAS-optimized)
@@ -403,17 +629,10 @@ inline double dplogis_safe(double x) {
 }
 
 inline Eigen::ArrayXd plogis_array_safe(const Eigen::ArrayXd& x) {
-    Eigen::ArrayXd res(x.size());
-    for (int i = 0; i < x.size(); ++i) {
-        if (x[i] >= 0.0) {
-            const double z = std::exp(-x[i]);
-            res[i] = 1.0 / (1.0 + z);
-        } else {
-            const double z = std::exp(x[i]);
-            res[i] = z / (1.0 + z);
-        }
-    }
-    return res;
+    const Eigen::ArrayXd z = (-x.abs()).exp();
+    const Eigen::ArrayXd p_pos = 1.0 / (1.0 + z);
+    const Eigen::ArrayXd p_neg = z / (1.0 + z);
+    return (x >= 0.0).select(p_pos, p_neg);
 }
 
 inline double log1pexp_safe(double x) {

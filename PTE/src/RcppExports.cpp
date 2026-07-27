@@ -108,6 +108,75 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// fast_default_continuous_cv_run_cpp
+Rcpp::List fast_default_continuous_cv_run_cpp(SEXP X_obs_sexp, SEXP y_full_sexp, SEXP X_tx0_sexp, SEXP X_tx1_sexp, SEXP treatment_sexp, SEXP censored_sexp, SEXP boot_idx_sexp, SEXP begin_cutoffs_sexp, SEXP end_cutoffs_sexp, bool y_higher_is_better);
+RcppExport SEXP _PTE_fast_default_continuous_cv_run_cpp(SEXP X_obs_sexpSEXP, SEXP y_full_sexpSEXP, SEXP X_tx0_sexpSEXP, SEXP X_tx1_sexpSEXP, SEXP treatment_sexpSEXP, SEXP censored_sexpSEXP, SEXP boot_idx_sexpSEXP, SEXP begin_cutoffs_sexpSEXP, SEXP end_cutoffs_sexpSEXP, SEXP y_higher_is_betterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type X_obs_sexp(X_obs_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type y_full_sexp(y_full_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type X_tx0_sexp(X_tx0_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type X_tx1_sexp(X_tx1_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type treatment_sexp(treatment_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type censored_sexp(censored_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type boot_idx_sexp(boot_idx_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type begin_cutoffs_sexp(begin_cutoffs_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type end_cutoffs_sexp(end_cutoffs_sexpSEXP);
+    Rcpp::traits::input_parameter< bool >::type y_higher_is_better(y_higher_is_betterSEXP);
+    rcpp_result_gen = Rcpp::wrap(fast_default_continuous_cv_run_cpp(X_obs_sexp, y_full_sexp, X_tx0_sexp, X_tx1_sexp, treatment_sexp, censored_sexp, boot_idx_sexp, begin_cutoffs_sexp, end_cutoffs_sexp, y_higher_is_better));
+    return rcpp_result_gen;
+END_RCPP
+}
+// default_continuous_q_scores_cpp
+Rcpp::List default_continuous_q_scores_cpp(SEXP y_sexp, SEXP given_tx_sexp, SEXP rec_tx_sexp, bool y_higher_is_better);
+RcppExport SEXP _PTE_default_continuous_q_scores_cpp(SEXP y_sexpSEXP, SEXP given_tx_sexpSEXP, SEXP rec_tx_sexpSEXP, SEXP y_higher_is_betterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type y_sexp(y_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type given_tx_sexp(given_tx_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type rec_tx_sexp(rec_tx_sexpSEXP);
+    Rcpp::traits::input_parameter< bool >::type y_higher_is_better(y_higher_is_betterSEXP);
+    rcpp_result_gen = Rcpp::wrap(default_continuous_q_scores_cpp(y_sexp, given_tx_sexp, rec_tx_sexp, y_higher_is_better));
+    return rcpp_result_gen;
+END_RCPP
+}
+// default_incidence_q_scores_cpp
+Rcpp::List default_incidence_q_scores_cpp(SEXP y_sexp, SEXP given_tx_sexp, SEXP rec_tx_sexp, bool y_higher_is_better, std::string incidence_metric);
+RcppExport SEXP _PTE_default_incidence_q_scores_cpp(SEXP y_sexpSEXP, SEXP given_tx_sexpSEXP, SEXP rec_tx_sexpSEXP, SEXP y_higher_is_betterSEXP, SEXP incidence_metricSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type y_sexp(y_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type given_tx_sexp(given_tx_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type rec_tx_sexp(rec_tx_sexpSEXP);
+    Rcpp::traits::input_parameter< bool >::type y_higher_is_better(y_higher_is_betterSEXP);
+    Rcpp::traits::input_parameter< std::string >::type incidence_metric(incidence_metricSEXP);
+    rcpp_result_gen = Rcpp::wrap(default_incidence_q_scores_cpp(y_sexp, given_tx_sexp, rec_tx_sexp, y_higher_is_better, incidence_metric));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fast_default_continuous_bootstrap_q_cpp
+Rcpp::List fast_default_continuous_bootstrap_q_cpp(SEXP X_obs_sexp, SEXP y_full_sexp, SEXP X_tx0_sexp, SEXP X_tx1_sexp, SEXP treatment_sexp, SEXP censored_sexp, int B, SEXP begin_cutoffs_sexp, SEXP end_cutoffs_sexp, bool y_higher_is_better);
+RcppExport SEXP _PTE_fast_default_continuous_bootstrap_q_cpp(SEXP X_obs_sexpSEXP, SEXP y_full_sexpSEXP, SEXP X_tx0_sexpSEXP, SEXP X_tx1_sexpSEXP, SEXP treatment_sexpSEXP, SEXP censored_sexpSEXP, SEXP BSEXP, SEXP begin_cutoffs_sexpSEXP, SEXP end_cutoffs_sexpSEXP, SEXP y_higher_is_betterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type X_obs_sexp(X_obs_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type y_full_sexp(y_full_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type X_tx0_sexp(X_tx0_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type X_tx1_sexp(X_tx1_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type treatment_sexp(treatment_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type censored_sexp(censored_sexpSEXP);
+    Rcpp::traits::input_parameter< int >::type B(BSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type begin_cutoffs_sexp(begin_cutoffs_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type end_cutoffs_sexp(end_cutoffs_sexpSEXP);
+    Rcpp::traits::input_parameter< bool >::type y_higher_is_better(y_higher_is_betterSEXP);
+    rcpp_result_gen = Rcpp::wrap(fast_default_continuous_bootstrap_q_cpp(X_obs_sexp, y_full_sexp, X_tx0_sexp, X_tx1_sexp, treatment_sexp, censored_sexp, B, begin_cutoffs_sexp, end_cutoffs_sexp, y_higher_is_better));
+    return rcpp_result_gen;
+END_RCPP
+}
 // get_logistic_regression_score_cpp
 Eigen::VectorXd get_logistic_regression_score_cpp(SEXP X_sexp, SEXP y_sexp, SEXP beta_sexp);
 RcppExport SEXP _PTE_get_logistic_regression_score_cpp(SEXP X_sexpSEXP, SEXP y_sexpSEXP, SEXP beta_sexpSEXP) {
@@ -224,6 +293,88 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// fast_default_incidence_cv_run_cpp
+Rcpp::List fast_default_incidence_cv_run_cpp(SEXP X_obs_sexp, SEXP y_full_sexp, SEXP X_tx0_sexp, SEXP X_tx1_sexp, SEXP treatment_sexp, SEXP censored_sexp, SEXP boot_idx_sexp, SEXP begin_cutoffs_sexp, SEXP end_cutoffs_sexp, Rcpp::Nullable<Rcpp::NumericVector> warm_start_beta, bool y_higher_is_better);
+RcppExport SEXP _PTE_fast_default_incidence_cv_run_cpp(SEXP X_obs_sexpSEXP, SEXP y_full_sexpSEXP, SEXP X_tx0_sexpSEXP, SEXP X_tx1_sexpSEXP, SEXP treatment_sexpSEXP, SEXP censored_sexpSEXP, SEXP boot_idx_sexpSEXP, SEXP begin_cutoffs_sexpSEXP, SEXP end_cutoffs_sexpSEXP, SEXP warm_start_betaSEXP, SEXP y_higher_is_betterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type X_obs_sexp(X_obs_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type y_full_sexp(y_full_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type X_tx0_sexp(X_tx0_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type X_tx1_sexp(X_tx1_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type treatment_sexp(treatment_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type censored_sexp(censored_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type boot_idx_sexp(boot_idx_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type begin_cutoffs_sexp(begin_cutoffs_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type end_cutoffs_sexp(end_cutoffs_sexpSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type warm_start_beta(warm_start_betaSEXP);
+    Rcpp::traits::input_parameter< bool >::type y_higher_is_better(y_higher_is_betterSEXP);
+    rcpp_result_gen = Rcpp::wrap(fast_default_incidence_cv_run_cpp(X_obs_sexp, y_full_sexp, X_tx0_sexp, X_tx1_sexp, treatment_sexp, censored_sexp, boot_idx_sexp, begin_cutoffs_sexp, end_cutoffs_sexp, warm_start_beta, y_higher_is_better));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fast_default_incidence_bootstrap_q_cpp
+Rcpp::List fast_default_incidence_bootstrap_q_cpp(SEXP X_obs_sexp, SEXP y_full_sexp, SEXP X_tx0_sexp, SEXP X_tx1_sexp, SEXP treatment_sexp, int B, SEXP begin_cutoffs_sexp, SEXP end_cutoffs_sexp, Rcpp::Nullable<Rcpp::NumericVector> warm_start_beta, bool y_higher_is_better, std::string incidence_metric);
+RcppExport SEXP _PTE_fast_default_incidence_bootstrap_q_cpp(SEXP X_obs_sexpSEXP, SEXP y_full_sexpSEXP, SEXP X_tx0_sexpSEXP, SEXP X_tx1_sexpSEXP, SEXP treatment_sexpSEXP, SEXP BSEXP, SEXP begin_cutoffs_sexpSEXP, SEXP end_cutoffs_sexpSEXP, SEXP warm_start_betaSEXP, SEXP y_higher_is_betterSEXP, SEXP incidence_metricSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type X_obs_sexp(X_obs_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type y_full_sexp(y_full_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type X_tx0_sexp(X_tx0_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type X_tx1_sexp(X_tx1_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type treatment_sexp(treatment_sexpSEXP);
+    Rcpp::traits::input_parameter< int >::type B(BSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type begin_cutoffs_sexp(begin_cutoffs_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type end_cutoffs_sexp(end_cutoffs_sexpSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type warm_start_beta(warm_start_betaSEXP);
+    Rcpp::traits::input_parameter< bool >::type y_higher_is_better(y_higher_is_betterSEXP);
+    Rcpp::traits::input_parameter< std::string >::type incidence_metric(incidence_metricSEXP);
+    rcpp_result_gen = Rcpp::wrap(fast_default_incidence_bootstrap_q_cpp(X_obs_sexp, y_full_sexp, X_tx0_sexp, X_tx1_sexp, treatment_sexp, B, begin_cutoffs_sexp, end_cutoffs_sexp, warm_start_beta, y_higher_is_better, incidence_metric));
+    return rcpp_result_gen;
+END_RCPP
+}
+// get_survival_stat_for_group_cpp
+double get_survival_stat_for_group_cpp(SEXP y_sexp, SEXP dead_sexp);
+RcppExport SEXP _PTE_get_survival_stat_for_group_cpp(SEXP y_sexpSEXP, SEXP dead_sexpSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type y_sexp(y_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type dead_sexp(dead_sexpSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_survival_stat_for_group_cpp(y_sexp, dead_sexp));
+    return rcpp_result_gen;
+END_RCPP
+}
+// get_survival_stat_diff_cpp
+double get_survival_stat_diff_cpp(SEXP y_sexp, SEXP dead_sexp, SEXP w_sexp);
+RcppExport SEXP _PTE_get_survival_stat_diff_cpp(SEXP y_sexpSEXP, SEXP dead_sexpSEXP, SEXP w_sexpSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type y_sexp(y_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type dead_sexp(dead_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type w_sexp(w_sexpSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_survival_stat_diff_cpp(y_sexp, dead_sexp, w_sexp));
+    return rcpp_result_gen;
+END_RCPP
+}
+// default_survival_q_scores_cpp
+Rcpp::List default_survival_q_scores_cpp(SEXP y_sexp, SEXP dead_sexp, SEXP given_tx_sexp, SEXP rec_tx_sexp, bool y_higher_is_better);
+RcppExport SEXP _PTE_default_survival_q_scores_cpp(SEXP y_sexpSEXP, SEXP dead_sexpSEXP, SEXP given_tx_sexpSEXP, SEXP rec_tx_sexpSEXP, SEXP y_higher_is_betterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type y_sexp(y_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type dead_sexp(dead_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type given_tx_sexp(given_tx_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type rec_tx_sexp(rec_tx_sexpSEXP);
+    Rcpp::traits::input_parameter< bool >::type y_higher_is_better(y_higher_is_betterSEXP);
+    rcpp_result_gen = Rcpp::wrap(default_survival_q_scores_cpp(y_sexp, dead_sexp, given_tx_sexp, rec_tx_sexp, y_higher_is_better));
+    return rcpp_result_gen;
+END_RCPP
+}
 // get_weibull_regression_score_cpp
 Eigen::VectorXd get_weibull_regression_score_cpp(SEXP X_sexp, SEXP y_sexp, SEXP dead_sexp, SEXP params_sexp);
 RcppExport SEXP _PTE_get_weibull_regression_score_cpp(SEXP X_sexpSEXP, SEXP y_sexpSEXP, SEXP dead_sexpSEXP, SEXP params_sexpSEXP) {
@@ -292,6 +443,48 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// fast_default_weibull_cv_run_cpp
+Rcpp::List fast_default_weibull_cv_run_cpp(SEXP X_obs_sexp, SEXP y_full_sexp, SEXP dead_full_sexp, SEXP X_tx0_sexp, SEXP X_tx1_sexp, SEXP treatment_sexp, SEXP boot_idx_sexp, SEXP begin_cutoffs_sexp, SEXP end_cutoffs_sexp, Rcpp::Nullable<Rcpp::NumericVector> warm_start_params, bool y_higher_is_better);
+RcppExport SEXP _PTE_fast_default_weibull_cv_run_cpp(SEXP X_obs_sexpSEXP, SEXP y_full_sexpSEXP, SEXP dead_full_sexpSEXP, SEXP X_tx0_sexpSEXP, SEXP X_tx1_sexpSEXP, SEXP treatment_sexpSEXP, SEXP boot_idx_sexpSEXP, SEXP begin_cutoffs_sexpSEXP, SEXP end_cutoffs_sexpSEXP, SEXP warm_start_paramsSEXP, SEXP y_higher_is_betterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type X_obs_sexp(X_obs_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type y_full_sexp(y_full_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type dead_full_sexp(dead_full_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type X_tx0_sexp(X_tx0_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type X_tx1_sexp(X_tx1_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type treatment_sexp(treatment_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type boot_idx_sexp(boot_idx_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type begin_cutoffs_sexp(begin_cutoffs_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type end_cutoffs_sexp(end_cutoffs_sexpSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type warm_start_params(warm_start_paramsSEXP);
+    Rcpp::traits::input_parameter< bool >::type y_higher_is_better(y_higher_is_betterSEXP);
+    rcpp_result_gen = Rcpp::wrap(fast_default_weibull_cv_run_cpp(X_obs_sexp, y_full_sexp, dead_full_sexp, X_tx0_sexp, X_tx1_sexp, treatment_sexp, boot_idx_sexp, begin_cutoffs_sexp, end_cutoffs_sexp, warm_start_params, y_higher_is_better));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fast_default_weibull_bootstrap_q_cpp
+Rcpp::List fast_default_weibull_bootstrap_q_cpp(SEXP X_obs_sexp, SEXP y_full_sexp, SEXP dead_full_sexp, SEXP X_tx0_sexp, SEXP X_tx1_sexp, SEXP treatment_sexp, int B, SEXP begin_cutoffs_sexp, SEXP end_cutoffs_sexp, Rcpp::Nullable<Rcpp::NumericVector> warm_start_params, bool y_higher_is_better);
+RcppExport SEXP _PTE_fast_default_weibull_bootstrap_q_cpp(SEXP X_obs_sexpSEXP, SEXP y_full_sexpSEXP, SEXP dead_full_sexpSEXP, SEXP X_tx0_sexpSEXP, SEXP X_tx1_sexpSEXP, SEXP treatment_sexpSEXP, SEXP BSEXP, SEXP begin_cutoffs_sexpSEXP, SEXP end_cutoffs_sexpSEXP, SEXP warm_start_paramsSEXP, SEXP y_higher_is_betterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type X_obs_sexp(X_obs_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type y_full_sexp(y_full_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type dead_full_sexp(dead_full_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type X_tx0_sexp(X_tx0_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type X_tx1_sexp(X_tx1_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type treatment_sexp(treatment_sexpSEXP);
+    Rcpp::traits::input_parameter< int >::type B(BSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type begin_cutoffs_sexp(begin_cutoffs_sexpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type end_cutoffs_sexp(end_cutoffs_sexpSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type warm_start_params(warm_start_paramsSEXP);
+    Rcpp::traits::input_parameter< bool >::type y_higher_is_better(y_higher_is_betterSEXP);
+    rcpp_result_gen = Rcpp::wrap(fast_default_weibull_bootstrap_q_cpp(X_obs_sexp, y_full_sexp, dead_full_sexp, X_tx0_sexp, X_tx1_sexp, treatment_sexp, B, begin_cutoffs_sexp, end_cutoffs_sexp, warm_start_params, y_higher_is_better));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_PTE_eigen_Xt_times_X_cpp", (DL_FUNC) &_PTE_eigen_Xt_times_X_cpp, 1},
@@ -302,6 +495,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"_PTE_gradient_test_from_restricted_score_cpp", (DL_FUNC) &_PTE_gradient_test_from_restricted_score_cpp, 4},
     {"_PTE_mean_cpp", (DL_FUNC) &_PTE_mean_cpp, 1},
     {"_PTE_var_cpp", (DL_FUNC) &_PTE_var_cpp, 1},
+    {"_PTE_fast_default_continuous_cv_run_cpp", (DL_FUNC) &_PTE_fast_default_continuous_cv_run_cpp, 10},
+    {"_PTE_default_continuous_q_scores_cpp", (DL_FUNC) &_PTE_default_continuous_q_scores_cpp, 4},
+    {"_PTE_default_incidence_q_scores_cpp", (DL_FUNC) &_PTE_default_incidence_q_scores_cpp, 5},
+    {"_PTE_fast_default_continuous_bootstrap_q_cpp", (DL_FUNC) &_PTE_fast_default_continuous_bootstrap_q_cpp, 10},
     {"_PTE_get_logistic_regression_score_cpp", (DL_FUNC) &_PTE_get_logistic_regression_score_cpp, 3},
     {"_PTE_get_logistic_regression_hessian_cpp", (DL_FUNC) &_PTE_get_logistic_regression_hessian_cpp, 2},
     {"_PTE_get_logistic_regression_weighted_score_cpp", (DL_FUNC) &_PTE_get_logistic_regression_weighted_score_cpp, 4},
@@ -309,10 +506,17 @@ static const R_CallMethodDef CallEntries[] = {
     {"_PTE_fast_logistic_regression_cpp", (DL_FUNC) &_PTE_fast_logistic_regression_cpp, 12},
     {"_PTE_fast_logistic_regression_weighted_cpp", (DL_FUNC) &_PTE_fast_logistic_regression_weighted_cpp, 12},
     {"_PTE_fast_logistic_regression_with_var_cpp", (DL_FUNC) &_PTE_fast_logistic_regression_with_var_cpp, 10},
+    {"_PTE_fast_default_incidence_cv_run_cpp", (DL_FUNC) &_PTE_fast_default_incidence_cv_run_cpp, 11},
+    {"_PTE_fast_default_incidence_bootstrap_q_cpp", (DL_FUNC) &_PTE_fast_default_incidence_bootstrap_q_cpp, 11},
+    {"_PTE_get_survival_stat_for_group_cpp", (DL_FUNC) &_PTE_get_survival_stat_for_group_cpp, 2},
+    {"_PTE_get_survival_stat_diff_cpp", (DL_FUNC) &_PTE_get_survival_stat_diff_cpp, 3},
+    {"_PTE_default_survival_q_scores_cpp", (DL_FUNC) &_PTE_default_survival_q_scores_cpp, 5},
     {"_PTE_get_weibull_regression_score_cpp", (DL_FUNC) &_PTE_get_weibull_regression_score_cpp, 4},
     {"_PTE_get_weibull_regression_hessian_cpp", (DL_FUNC) &_PTE_get_weibull_regression_hessian_cpp, 4},
     {"_PTE_compute_weibull_rand_bootstrap_parallel_cpp", (DL_FUNC) &_PTE_compute_weibull_rand_bootstrap_parallel_cpp, 8},
     {"_PTE_fast_weibull_regression_cpp", (DL_FUNC) &_PTE_fast_weibull_regression_cpp, 12},
+    {"_PTE_fast_default_weibull_cv_run_cpp", (DL_FUNC) &_PTE_fast_default_weibull_cv_run_cpp, 11},
+    {"_PTE_fast_default_weibull_bootstrap_q_cpp", (DL_FUNC) &_PTE_fast_default_weibull_bootstrap_q_cpp, 11},
     {NULL, NULL, 0}
 };
 

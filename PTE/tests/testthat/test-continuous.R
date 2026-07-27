@@ -6,7 +6,7 @@
 dat = make_continuous_data()
 B = 30
 
-res = PTE_bootstrap_inference(dat$X, dat$y, regression_type = "continuous", B = B, num_cores = 2)
+res = PTE_bootstrap_inference(dat$X, dat$y, regression_type = "continuous", B = B, num_cores = 1)
 
 test_that("basic structure and contract hold", {
 	expect_valid_pte_result(res, B)
@@ -41,7 +41,7 @@ test_that("custom personalized_model_build_function and predict_function are hon
 	custom_predict = function(mod, Xyleftout) predict(mod, Xyleftout)
 
 	res_custom = PTE_bootstrap_inference(
-		dat$X, dat$y, regression_type = "continuous", B = B, num_cores = 2,
+		dat$X, dat$y, regression_type = "continuous", B = B, num_cores = 1,
 		personalized_model_build_function = custom_build,
 		predict_function = custom_predict
 	)
@@ -63,7 +63,7 @@ test_that("a custom difference_function is honored and produces a valid result",
 	}
 
 	res_diff = PTE_bootstrap_inference(
-		dat$X, dat$y, regression_type = "continuous", B = B, num_cores = 2,
+		dat$X, dat$y, regression_type = "continuous", B = B, num_cores = 1,
 		difference_function = custom_diff
 	)
 
@@ -81,7 +81,7 @@ test_that("H_0_mu_equals can be overridden", {
 
 test_that("y_higher_is_better = FALSE flips the direction of the estimated effect", {
 	res_flip = PTE_bootstrap_inference(
-		dat$X, -dat$y, regression_type = "continuous", B = B, num_cores = 2,
+		dat$X, -dat$y, regression_type = "continuous", B = B, num_cores = 1,
 		y_higher_is_better = FALSE
 	)
 	expect_valid_pte_result(res_flip, B)
@@ -95,7 +95,7 @@ test_that("y_higher_is_better = FALSE flips the direction of the estimated effec
 test_that("run_bca_bootstrap = TRUE additionally produces valid BCa confidence intervals", {
 	dat_small = make_continuous_data(n = 40)
 	res_bca = PTE_bootstrap_inference(
-		dat_small$X, dat_small$y, regression_type = "continuous", B = 15, num_cores = 2,
+		dat_small$X, dat_small$y, regression_type = "continuous", B = 15, num_cores = 1,
 		run_bca_bootstrap = TRUE
 	)
 	expect_valid_pte_result(res_bca, 15, expect_bca = TRUE)
@@ -116,4 +116,66 @@ test_that("num_bad is reported and a warning is issued when the recommendation i
 		"invalid"
 	)
 	expect_gt(res_noisy$num_bad, 0)
+})
+
+test_that("cleanup_mod_function is invoked once per fold when a custom model builder is used", {
+	# the built-in fast path for the *default* continuous model bypasses cleanup_mod_function
+	# entirely (it never builds an lm object per fold), so this is only observable on the
+	# slow/custom-model path -- see create_fast_lm_objects() in fast_lm_default.R
+	log_file = tempfile()
+	custom_build = function(Xytrain) lm(y ~ . * treatment, data = Xytrain)
+	custom_predict = function(mod, Xyleftout) predict(mod, Xyleftout)
+	custom_cleanup = function() cat("x", file = log_file, append = TRUE)
+
+	res_cleanup = PTE_bootstrap_inference(
+		dat$X, dat$y, regression_type = "continuous", B = 5, num_cores = 1,
+		personalized_model_build_function = custom_build,
+		predict_function = custom_predict,
+		cleanup_mod_function = custom_cleanup
+	)
+
+	expect_s3_class(res_cleanup, "PTE_bootstrap_results")
+	expect_true(file.exists(log_file))
+	expect_gt(nchar(paste(readLines(log_file, warn = FALSE), collapse = "")), 0)
+})
+
+test_that("m_pow_of_n < 1 subsamples each bootstrap replicate without error", {
+	res_mprop = PTE_bootstrap_inference(
+		dat$X, dat$y, regression_type = "continuous", B = 15, num_cores = 1,
+		m_pow_of_n = 0.85
+	)
+	expect_valid_pte_result(res_mprop, 15)
+})
+
+test_that("a non-default pct_leave_out produces a valid result", {
+	res_pct = PTE_bootstrap_inference(
+		dat$X, dat$y, regression_type = "continuous", B = 15, num_cores = 1,
+		pct_leave_out = 0.2
+	)
+	expect_valid_pte_result(res_pct, 15)
+})
+
+test_that("a larger alpha yields a narrower percentile confidence interval", {
+	set.seed(42)
+	res_wide = PTE_bootstrap_inference(dat$X, dat$y, regression_type = "continuous", B = 60, num_cores = 1, alpha = 0.05)
+	res_narrow = PTE_bootstrap_inference(dat$X, dat$y, regression_type = "continuous", B = 60, num_cores = 1, alpha = 0.5)
+
+	width_wide = diff(res_wide$ci_q_average)
+	width_narrow = diff(res_narrow$ci_q_average)
+	expect_lt(width_narrow, width_wide)
+})
+
+test_that("multiple covariates in X are handled by the default model formula", {
+	dat_multi = make_continuous_data(n = 80)
+	dat_multi$X$x2 = rnorm(nrow(dat_multi$X)) # add a second, unrelated covariate
+
+	res_multi = PTE_bootstrap_inference(dat_multi$X, dat_multi$y, regression_type = "continuous", B = 15, num_cores = 1)
+	expect_valid_pte_result(res_multi, 15)
+	expect_setequal(colnames(res_multi$Xy), c("treatment", "x", "x2", "y"))
+})
+
+test_that("verbose and full_verbose run without error and print progress output", {
+	expect_output(
+		PTE_bootstrap_inference(dat$X, dat$y, regression_type = "continuous", B = 3, num_cores = 1, verbose = TRUE)
+	)
 })

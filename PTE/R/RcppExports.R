@@ -33,6 +33,22 @@ var_cpp <- function(x_sexp) {
     .Call(`_PTE_var_cpp`, x_sexp)
 }
 
+fast_default_continuous_cv_run_cpp <- function(X_obs_sexp, y_full_sexp, X_tx0_sexp, X_tx1_sexp, treatment_sexp, censored_sexp, boot_idx_sexp, begin_cutoffs_sexp, end_cutoffs_sexp, y_higher_is_better) {
+    .Call(`_PTE_fast_default_continuous_cv_run_cpp`, X_obs_sexp, y_full_sexp, X_tx0_sexp, X_tx1_sexp, treatment_sexp, censored_sexp, boot_idx_sexp, begin_cutoffs_sexp, end_cutoffs_sexp, y_higher_is_better)
+}
+
+default_continuous_q_scores_cpp <- function(y_sexp, given_tx_sexp, rec_tx_sexp, y_higher_is_better) {
+    .Call(`_PTE_default_continuous_q_scores_cpp`, y_sexp, given_tx_sexp, rec_tx_sexp, y_higher_is_better)
+}
+
+default_incidence_q_scores_cpp <- function(y_sexp, given_tx_sexp, rec_tx_sexp, y_higher_is_better, incidence_metric) {
+    .Call(`_PTE_default_incidence_q_scores_cpp`, y_sexp, given_tx_sexp, rec_tx_sexp, y_higher_is_better, incidence_metric)
+}
+
+fast_default_continuous_bootstrap_q_cpp <- function(X_obs_sexp, y_full_sexp, X_tx0_sexp, X_tx1_sexp, treatment_sexp, censored_sexp, B, begin_cutoffs_sexp, end_cutoffs_sexp, y_higher_is_better) {
+    .Call(`_PTE_fast_default_continuous_bootstrap_q_cpp`, X_obs_sexp, y_full_sexp, X_tx0_sexp, X_tx1_sexp, treatment_sexp, censored_sexp, B, begin_cutoffs_sexp, end_cutoffs_sexp, y_higher_is_better)
+}
+
 get_logistic_regression_score_cpp <- function(X_sexp, y_sexp, beta_sexp) {
     .Call(`_PTE_get_logistic_regression_score_cpp`, X_sexp, y_sexp, beta_sexp)
 }
@@ -59,6 +75,54 @@ fast_logistic_regression_weighted_cpp <- function(X_sexp, y_sexp, weights_sexp, 
 
 fast_logistic_regression_with_var_cpp <- function(X_sexp, y_sexp, j = 2L, warm_start_beta = NULL, smart_cold_start = FALSE, fixed_idx = NULL, fixed_values = NULL, optimization_alg = "irls", warm_start_weights = NULL, warm_start_fisher_info = NULL) {
     .Call(`_PTE_fast_logistic_regression_with_var_cpp`, X_sexp, y_sexp, j, warm_start_beta, smart_cold_start, fixed_idx, fixed_values, optimization_alg, warm_start_weights, warm_start_fisher_info)
+}
+
+fast_default_incidence_cv_run_cpp <- function(X_obs_sexp, y_full_sexp, X_tx0_sexp, X_tx1_sexp, treatment_sexp, censored_sexp, boot_idx_sexp, begin_cutoffs_sexp, end_cutoffs_sexp, warm_start_beta = NULL, y_higher_is_better = TRUE) {
+    .Call(`_PTE_fast_default_incidence_cv_run_cpp`, X_obs_sexp, y_full_sexp, X_tx0_sexp, X_tx1_sexp, treatment_sexp, censored_sexp, boot_idx_sexp, begin_cutoffs_sexp, end_cutoffs_sexp, warm_start_beta, y_higher_is_better)
+}
+
+fast_default_incidence_bootstrap_q_cpp <- function(X_obs_sexp, y_full_sexp, X_tx0_sexp, X_tx1_sexp, treatment_sexp, B, begin_cutoffs_sexp, end_cutoffs_sexp, warm_start_beta = NULL, y_higher_is_better = TRUE, incidence_metric = "odds_ratio") {
+    .Call(`_PTE_fast_default_incidence_bootstrap_q_cpp`, X_obs_sexp, y_full_sexp, X_tx0_sexp, X_tx1_sexp, treatment_sexp, B, begin_cutoffs_sexp, end_cutoffs_sexp, warm_start_beta, y_higher_is_better, incidence_metric)
+}
+
+#' Kaplan-Meier median survival time for a single group
+#'
+#' A minimal, compiled replacement for \code{summary(survival::survfit(Surv(y, dead) ~ 1))$table['median']}
+#' -- computes only the median (no confidence intervals, no full survival table), which is all
+#' \code{create_PTE_results_object} ever needs. See \code{get_survival_stat_diff} for the
+#' treatment-vs-control difference used directly by the package.
+#'
+#' @param y_sexp Numeric vector of survival/censoring times.
+#' @param dead_sexp Integer vector of event indicators (1 = event/death, 0 = censored).
+#' @return The KM median survival time, or \code{Inf} if the curve never drops below 0.5.
+#' @keywords internal
+#' @noRd
+get_survival_stat_for_group_cpp <- function(y_sexp, dead_sexp) {
+    .Call(`_PTE_get_survival_stat_for_group_cpp`, y_sexp, dead_sexp)
+}
+
+#' Difference in Kaplan-Meier median survival time between two groups
+#'
+#' A minimal, compiled replacement for the package's previous
+#' \code{summary(survival::survfit(Surv(y, dead) ~ w))$table[, 'median']} pattern, which paid for
+#' the full \code{survfit}/\code{summary.survfit} machinery (confidence intervals, the full
+#' survival table, formula/factor bookkeeping) purely to extract two numbers. This computes just
+#' the two group medians directly and returns their difference.
+#'
+#' @param y_sexp Numeric vector of survival/censoring times (both groups concatenated).
+#' @param dead_sexp Integer vector of event indicators (1 = event/death, 0 = censored).
+#' @param w_sexp Integer vector of group membership (1 = first/"treatment" group, 0 = second/"control" group).
+#' @return \code{median(group w == 1) - median(group w == 0)}. \code{NA} if either group's median
+#' is not reached (the KM curve never drops below 0.5) or either group is empty, matching the
+#' \code{NA} that \code{summary.survfit} would have produced in the same situation.
+#' @keywords internal
+#' @noRd
+get_survival_stat_diff_cpp <- function(y_sexp, dead_sexp, w_sexp) {
+    .Call(`_PTE_get_survival_stat_diff_cpp`, y_sexp, dead_sexp, w_sexp)
+}
+
+default_survival_q_scores_cpp <- function(y_sexp, dead_sexp, given_tx_sexp, rec_tx_sexp, y_higher_is_better) {
+    .Call(`_PTE_default_survival_q_scores_cpp`, y_sexp, dead_sexp, given_tx_sexp, rec_tx_sexp, y_higher_is_better)
 }
 
 #' @title Compute Weibull Regression Score
@@ -110,5 +174,13 @@ compute_weibull_rand_bootstrap_parallel_cpp <- function(y0, dead, Xc, i_mat, w_m
 #' @noRd
 fast_weibull_regression_cpp <- function(X_sexp, y_sexp, dead_sexp, warm_start_params = NULL, smart_cold_start = TRUE, estimate_only = FALSE, maxit = 100L, tol = 1e-8, fixed_idx = NULL, fixed_values = NULL, optimization_alg = "lbfgs", warm_start_fisher_info = NULL) {
     .Call(`_PTE_fast_weibull_regression_cpp`, X_sexp, y_sexp, dead_sexp, warm_start_params, smart_cold_start, estimate_only, maxit, tol, fixed_idx, fixed_values, optimization_alg, warm_start_fisher_info)
+}
+
+fast_default_weibull_cv_run_cpp <- function(X_obs_sexp, y_full_sexp, dead_full_sexp, X_tx0_sexp, X_tx1_sexp, treatment_sexp, boot_idx_sexp, begin_cutoffs_sexp, end_cutoffs_sexp, warm_start_params = NULL, y_higher_is_better = TRUE) {
+    .Call(`_PTE_fast_default_weibull_cv_run_cpp`, X_obs_sexp, y_full_sexp, dead_full_sexp, X_tx0_sexp, X_tx1_sexp, treatment_sexp, boot_idx_sexp, begin_cutoffs_sexp, end_cutoffs_sexp, warm_start_params, y_higher_is_better)
+}
+
+fast_default_weibull_bootstrap_q_cpp <- function(X_obs_sexp, y_full_sexp, dead_full_sexp, X_tx0_sexp, X_tx1_sexp, treatment_sexp, B, begin_cutoffs_sexp, end_cutoffs_sexp, warm_start_params = NULL, y_higher_is_better = TRUE) {
+    .Call(`_PTE_fast_default_weibull_bootstrap_q_cpp`, X_obs_sexp, y_full_sexp, dead_full_sexp, X_tx0_sexp, X_tx1_sexp, treatment_sexp, B, begin_cutoffs_sexp, end_cutoffs_sexp, warm_start_params, y_higher_is_better)
 }
 
